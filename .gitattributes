@@ -1,0 +1,30 @@
+# Normalize text files in the repository.
+* text=auto
+
+# Unity text assets
+*.anim text
+*.asset text
+*.controller text
+*.mat text
+*.meta text
+*.prefab text
+*.unity text
+
+# Common binary assets
+*.aif binary
+*.aiff binary
+*.exr binary
+*.fbx binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.mp3 binary
+*.otf binary
+*.png binary
+*.psb binary
+*.psd binary
+*.tga binary
+*.tif binary
+*.tiff binary
+*.ttf binary
+*.wav binary
