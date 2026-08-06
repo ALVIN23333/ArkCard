@@ -1,0 +1,355 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// 运行时效果共享原语：效果定义类通过这里操作真实对战对象。
+/// </summary>
+public static class RuntimeEffectActions
+{
+    public static void Draw(PlayerController player, int count)
+    {
+        if (player == null || GM.Ins == null || GM.Ins.BM == null)
+        {
+            return;
+        }
+
+        GM.Ins.BM.DrawCard(player, count);
+    }
+
+    public static void AddStats(CardController card, int attackValue, int healthValue)
+    {
+        if (card != null)
+        {
+            card.AddStats(attackValue, healthValue);
+        }
+    }
+
+    public static void BuffAllies(CardController source, int attackValue, int healthValue)
+    {
+        if (source == null || source.player == null || source.player.fieldController == null)
+        {
+            return;
+        }
+
+        foreach (CardController ally in source.player.fieldController.fieldCards)
+        {
+            if (ally != null)
+            {
+                ally.AddStats(attackValue, healthValue);
+            }
+        }
+    }
+
+    public static void BuffEnemies(CardController source, int attackValue, int healthValue)
+    {
+        if (source == null || GM.Ins == null || GM.Ins.BM == null)
+        {
+            return;
+        }
+
+        foreach (PlayerController player in GM.Ins.BM.players)
+        {
+            if (player == null || player == source.player || player.fieldController == null)
+            {
+                continue;
+            }
+
+            foreach (CardController enemy in player.fieldController.fieldCards)
+            {
+                if (enemy != null)
+                {
+                    enemy.AddStats(attackValue, healthValue);
+                }
+            }
+        }
+    }
+
+    public static void HealAllies(CardController source, int healValue)
+    {
+        if (source == null || source.player == null || healValue <= 0)
+        {
+            return;
+        }
+
+        source.player.Heal(healValue);
+        if (source.player.fieldController == null)
+        {
+            return;
+        }
+
+        foreach (CardController ally in source.player.fieldController.fieldCards)
+        {
+            if (ally != null)
+            {
+                ally.Heal(healValue);
+            }
+        }
+    }
+
+    public static void AddCostAndMaxCost(PlayerController player, int costValue)
+    {
+        if (player == null || costValue <= 0)
+        {
+            return;
+        }
+
+        player.AddMaxCost(costValue);
+        player.AddCost(costValue);
+    }
+
+    public static void DiscardRandomCards(PlayerController player, int discardCount)
+    {
+        if (player == null || player.handController == null || discardCount <= 0)
+        {
+            return;
+        }
+
+        List<CardController> handCards = new(player.handController.handCards);
+        for (int i = 0; i < discardCount && handCards.Count > 0; i++)
+        {
+            int randomIndex = Random.Range(0, handCards.Count);
+            CardController card = handCards[randomIndex];
+            handCards.RemoveAt(randomIndex);
+
+            if (card != null)
+            {
+                player.SendCardToGraveyard(card);
+            }
+        }
+    }
+
+    public static void DamageCharacters(CardController source, int damageValue, bool enemyOnly)
+    {
+        if (damageValue <= 0 || source == null || GM.Ins == null || GM.Ins.BM == null)
+        {
+            return;
+        }
+
+        foreach (PlayerController player in GM.Ins.BM.players)
+        {
+            if (player == null)
+            {
+                continue;
+            }
+
+            bool isEnemy = player != source.player;
+            if (enemyOnly && !isEnemy)
+            {
+                continue;
+            }
+
+            CardController.ApplyPlayerDamage(source, player, damageValue);
+        }
+
+        List<CardController> targets = new();
+        foreach (PlayerController player in GM.Ins.BM.players)
+        {
+            if (player == null || player.fieldController == null)
+            {
+                continue;
+            }
+
+            foreach (CardController card in player.fieldController.fieldCards)
+            {
+                if (card == null)
+                {
+                    continue;
+                }
+
+                if (!enemyOnly && card == source)
+                {
+                    continue;
+                }
+
+                if (enemyOnly && card.player == source.player)
+                {
+                    continue;
+                }
+
+                targets.Add(card);
+            }
+        }
+
+        foreach (CardController target in targets)
+        {
+            CardController.ApplyDamage(source, target, damageValue);
+        }
+    }
+
+    public static void DamageTargets(CardController source, List<UnityEngine.Object> targets, int damageValue)
+    {
+        if (damageValue <= 0 || targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (target is CardController targetCard)
+            {
+                CardController.ApplyDamage(source, targetCard, damageValue);
+                continue;
+            }
+
+            if (target is PlayerController targetPlayer)
+            {
+                CardController.ApplyPlayerDamage(source, targetPlayer, damageValue);
+            }
+        }
+    }
+
+    public static void BuffTargets(List<UnityEngine.Object> targets, int attackValue, int healthValue)
+    {
+        if (targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (target is CardController targetCard)
+            {
+                targetCard.AddStats(attackValue, healthValue);
+            }
+        }
+    }
+
+    public static void HealTargets(List<UnityEngine.Object> targets, int healValue)
+    {
+        if (healValue <= 0 || targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (target is CardController targetCard)
+            {
+                targetCard.Heal(healValue);
+            }
+        }
+    }
+
+    public static void SilenceTargets(List<UnityEngine.Object> targets)
+    {
+        if (targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (target is not CardController targetCard)
+            {
+                continue;
+            }
+
+            targetCard.isSilence = true;
+            targetCard.isStealth = false;
+            targetCard.holyShieldCount = 0;
+            if (targetCard.cardDisplay != null)
+            {
+                targetCard.cardDisplay.UpdateCard();
+            }
+        }
+    }
+
+    public static void DestroyTargets(List<UnityEngine.Object> targets)
+    {
+        if (targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (target is not CardController targetCard
+                || targetCard.player == null
+                || targetCard.state == CardState.Graveyard)
+            {
+                continue;
+            }
+
+            targetCard.Kill();
+        }
+    }
+
+    public static void ReturnTargetsToOwnerHand(List<UnityEngine.Object> targets)
+    {
+        if (targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (target is not CardController targetCard
+                || targetCard.player == null
+                || targetCard.player.handController == null)
+            {
+                continue;
+            }
+
+            if (targetCard.player.graveCards.Contains(targetCard))
+            {
+                targetCard.player.graveCards.Remove(targetCard);
+                targetCard.player.RefreshGraveyardSorting();
+            }
+
+            if (targetCard.player.fieldController != null && targetCard.player.fieldController.fieldCards.Contains(targetCard))
+            {
+                targetCard.player.fieldController.RemoveCard(targetCard);
+            }
+
+            PlayerController owner = targetCard.player;
+            if (owner.handController.handCards.Count >= GameConst.handMax)
+            {
+                owner.SendCardToGraveyard(targetCard);
+                continue;
+            }
+
+            CardData data = targetCard.cardData;
+            targetCard.transform.localScale = Vector3.one;
+            targetCard.Init(data, owner);
+            if (targetCard.cardDisplay != null)
+            {
+                targetCard.cardDisplay.ShowBack(!owner.isMainPlayer);
+            }
+
+            owner.handController.AddCard(targetCard);
+        }
+    }
+
+    public static void ReviveAllies(PlayerController owner, List<UnityEngine.Object> targets)
+    {
+        if (owner == null || owner.fieldController == null || targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (owner.fieldController.fieldCards.Count >= GameConst.fieldMax)
+            {
+                return;
+            }
+
+            if (target is not CardController targetCard
+                || targetCard.player != owner
+                || targetCard.cardData == null
+                || targetCard.cardData.cardType != CardType.Minion
+                || !owner.graveCards.Contains(targetCard))
+            {
+                continue;
+            }
+
+            owner.graveCards.Remove(targetCard);
+            owner.RefreshGraveyardSorting();
+
+            CardData data = targetCard.cardData;
+            targetCard.transform.localScale = Vector3.one;
+            targetCard.Init(data, owner);
+            owner.fieldController.AddCard(targetCard);
+        }
+    }
+}

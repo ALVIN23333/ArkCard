@@ -188,18 +188,34 @@ public class BattleManager : MonoBehaviour
 
         int attackerDamage = attacker.atk;
         int targetDamage = target.atk;
-        attacker.SetCanAttack(false);
+        attacker.UseAttack();
+
+        // 横扫：在造成伤害前先记录目标相邻随从，避免目标死亡结算被移出场上列表后拿不到邻居
+        List<CardController> swingleNeighbors = attacker.HasPassive(PassiveType.Swingle)
+            && target != null
+            && target.player != null
+            && target.player.fieldController != null
+            ? target.player.fieldController.GetAdjacentCards(target)
+            : new List<CardController>();
 
         AnimeManager.PlayAttackAnimation(attacker, target.transform.position, () =>
         {
             if (target != null)
             {
-                target.Damage(attackerDamage);
+                CardController.ApplyDamage(attacker, target, attackerDamage);
             }
 
             if (attacker != null)
             {
-                attacker.Damage(targetDamage);
+                CardController.ApplyDamage(target, attacker, targetDamage);
+            }
+
+            foreach (CardController neighbor in swingleNeighbors)
+            {
+                if (neighbor != null && neighbor != attacker)
+                {
+                    CardController.ApplyDamage(attacker, neighbor, attackerDamage);
+                }
             }
         });
     }
@@ -211,12 +227,12 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        attacker.SetCanAttack(false);
+        attacker.UseAttack();
         AnimeManager.PlayAttackAnimation(attacker, GetPlayerTargetPosition(targetPlayer), () =>
         {
             if (targetPlayer != null)
             {
-                targetPlayer.Damage(attacker.atk);
+                CardController.ApplyPlayerDamage(attacker, targetPlayer, attacker.atk);
                 CheckGameOver();
             }
         });
@@ -313,14 +329,14 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
-    public bool TryUseFieldCast(CardController card, bool autoSelect = false)
+    public bool TryUseFieldCast(CardController card, bool autoSelect = false, List<UnityEngine.Object> selectedTargets = null)
     {
         if (!CanUseFieldCast(card))
         {
             return false;
         }
 
-        ResolveFieldCast(card, null);
+        ResolveFieldCast(card, selectedTargets);
         return true;
     }
 
@@ -338,7 +354,7 @@ public class BattleManager : MonoBehaviour
                 continue;
             }
 
-            card.SetCanAttack(true);
+            card.RefreshTurnAttackState();
         }
     }
 
@@ -378,14 +394,10 @@ public class BattleManager : MonoBehaviour
 
     private void DrawSingleCard(PlayerController player)
     {
-        if (player.deckCards.Count <= 0)
+        if (player != null)
         {
-            return;
+            player.DrawCard();
         }
-
-        CardController card = player.deckCards[0];
-        player.deckCards.RemoveAt(0);
-        player.handController.AddCard(card);
     }
 
     private void StartCurrentTurn()
@@ -562,32 +574,13 @@ public class BattleManager : MonoBehaviour
             TM?.ClearFieldCastRollback(card);
         });
     }
-    private static List<UnityEngine.Object> SelectRandomTargets(TargetSelectionRequest request)
-    {
-        List<UnityEngine.Object> results = new();
-        if (request == null || request.candidates == null || request.candidates.Count == 0)
-        {
-            return results;
-        }
-
-        List<UnityEngine.Object> candidates = new(request.candidates);
-        int targetCount = Mathf.Min(Mathf.Max(1, request.requiredCount), candidates.Count);
-        for (int i = 0; i < targetCount; i++)
-        {
-            int randomIndex = UnityEngine.Random.Range(0, candidates.Count);
-            results.Add(candidates[randomIndex]);
-            candidates.RemoveAt(randomIndex);
-        }
-
-        return results;
-    }
-
     private bool CanAttack(CardController attacker)
     {
         return CanAct()
             && attacker != null
             && attacker.state == CardState.Field
             && attacker.canAttack
+            && attacker.attackCount > 0
             && attacker.player != null
             && attacker.player.isInTurn;
     }
@@ -603,12 +596,17 @@ public class BattleManager : MonoBehaviour
             return false;
         }
 
+        if (target.isStealth)
+        {
+            return false;
+        }
+
         return !HasGuardMinion(target.player) || IsGuardMinion(target);
     }
 
     private bool CanAttackTarget(CardController attacker, PlayerController targetPlayer)
     {
-        if (!CanAttack(attacker) || targetPlayer == null || targetPlayer == attacker.player)
+        if (!CanAttack(attacker) || !attacker.canAttackPlayer || targetPlayer == null || targetPlayer == attacker.player)
         {
             return false;
         }
@@ -639,8 +637,9 @@ public class BattleManager : MonoBehaviour
         return card != null
             && card.state == CardState.Field
             && !card.isSilence
+            && !card.isStealth
             && card.cardData != null
-            && card.cardData.passiveType == PassiveType.Guard;
+            && card.HasPassive(PassiveType.Guard);
     }
 
     private bool CanUseCard(CardController card)

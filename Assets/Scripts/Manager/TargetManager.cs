@@ -17,6 +17,7 @@ public class TargetSelectionRequest
     public List<UnityEngine.Object> candidates = new();
     public int requiredCount = 1;
     public TargetSelectionZone zone;
+    public bool allowRollback = true;
     public Action<List<UnityEngine.Object>> onComplete;
     public Action onCancel;
 }
@@ -144,6 +145,10 @@ public class TargetManager : MonoBehaviour
         public int health;
         public int maxHealth;
         public bool canAttack;
+        public bool canAttackPlayer;
+        public int attackCount;
+        public bool isStealth;
+        public int holyShieldCount;
         public bool castUsed;
         public bool isSilence;
         public bool isDying;
@@ -242,7 +247,8 @@ public class TargetManager : MonoBehaviour
         int requiredCount,
         TargetSelectionZone zone,
         Action<List<UnityEngine.Object>> onComplete,
-        Action onCancel = null)
+        Action onCancel = null,
+        bool allowRollback = true)
     {
         return BeginSelection(new TargetSelectionRequest
         {
@@ -250,6 +256,7 @@ public class TargetManager : MonoBehaviour
             candidates = candidates,
             requiredCount = requiredCount,
             zone = zone,
+            allowRollback = allowRollback,
             onComplete = onComplete,
             onCancel = onCancel,
         });
@@ -318,6 +325,10 @@ public class TargetManager : MonoBehaviour
                 health = card.health,
                 maxHealth = card.maxHealth,
                 canAttack = card.canAttack,
+                canAttackPlayer = card.canAttackPlayer,
+                attackCount = card.attackCount,
+                isStealth = card.isStealth,
+                holyShieldCount = card.holyShieldCount,
                 castUsed = card.castUsed,
                 isSilence = card.isSilence,
                 isDying = card.isDying,
@@ -362,6 +373,11 @@ public class TargetManager : MonoBehaviour
             && step.fieldCastState.card == card);
     }
 
+    public void CommitCurrentActionRollback()
+    {
+        rollbackSteps.Clear();
+    }
+
     public bool TrySelectTarget(CardController target)
     {
         return TrySelectTargetInternal(target);
@@ -374,7 +390,7 @@ public class TargetManager : MonoBehaviour
 
     public bool UndoLastSelectionOrPending()
     {
-        if (!HasActiveSelection)
+        if (!HasActiveSelection || !currentRequest.allowRollback)
         {
             return false;
         }
@@ -523,6 +539,33 @@ public class TargetManager : MonoBehaviour
         }
 
         onComplete?.Invoke();
+    }
+
+    public void ShowCardHangingThenSendToGraveyard(CardController card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        if (EnterHangingState(card, false, () =>
+        {
+            ReleaseHangingState(card, () =>
+            {
+                if (card.player != null)
+                {
+                    card.player.SendCardToGraveyard(card);
+                }
+            });
+        }))
+        {
+            return;
+        }
+
+        if (card.player != null)
+        {
+            card.player.SendCardToGraveyard(card);
+        }
     }
 
     private void ApplyHangingStateImmediately(CardController sourceCard)
@@ -763,6 +806,10 @@ public class TargetManager : MonoBehaviour
         card.health = state.health;
         card.maxHealth = state.maxHealth;
         card.canAttack = state.canAttack;
+        card.canAttackPlayer = state.canAttackPlayer;
+        card.attackCount = state.attackCount;
+        card.isStealth = state.isStealth;
+        card.holyShieldCount = state.holyShieldCount;
         card.castUsed = state.castUsed;
         card.isSilence = state.isSilence;
         card.isDying = state.isDying;

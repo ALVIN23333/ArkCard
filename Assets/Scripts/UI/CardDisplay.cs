@@ -11,10 +11,16 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
     public GameObject front;
     public GameObject back;
     public GameObject member;
+
+    [Header("常态效果对象（不限制卡牌状态，满足条件即显示）")]
     public GameObject isActiveIcon;
     [FormerlySerializedAs("isChoosedIcon")]
     public GameObject isChoosingIcon;
+
+    [Header("场地效果对象（仅在 Field 状态显示）")]
     public GameObject isSilenceIcon;
+    public GameObject holyshieldIcon;
+    public GameObject shadowIcon;
 
     public TMP_Text cardName;
     public TMP_Text cost;
@@ -29,6 +35,7 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
     private int originalSortingOrder;
     private CardState originalState;
     private bool isSelected;
+    private const int HoverSortingOffset = 50;
     public Quaternion InitialLocalRotation { get; private set; }
     public void SetCard(CardController cardController)
     {
@@ -41,7 +48,7 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
         if(cardData.cardType== CardType.Minion)
         {
             member.SetActive(true);
-            attack.text = cardData.attack.ToString();
+            attack.text = Mathf.Max(0, cardData.attack).ToString();
             health.text = cardData.health.ToString();
         }
         else
@@ -59,7 +66,7 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
     {
         if (member.activeSelf)
         {
-            attack.text = controller.atk.ToString();
+            attack.text = Mathf.Max(0, controller.atk).ToString();
             health.text = controller.health.ToString();
         }
         RefreshStateVisuals();
@@ -91,7 +98,17 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
 
         if (isSilenceIcon != null)
         {
-            isSilenceIcon.SetActive(front.activeSelf && controller.isSilence);
+            isSilenceIcon.SetActive(front.activeSelf && controller.state == CardState.Field && controller.isSilence);
+        }
+
+        if (holyshieldIcon != null)
+        {
+            holyshieldIcon.SetActive(front.activeSelf && controller.state == CardState.Field && controller.holyShieldCount > 0);
+        }
+
+        if (shadowIcon != null)
+        {
+            shadowIcon.SetActive(front.activeSelf && controller.state == CardState.Field && controller.isStealth);
         }
 
         TargetManager targetManager = GM.Ins != null ? GM.Ins.BM.TM : null;
@@ -151,7 +168,7 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
             originalSortingOrder = group.sortingOrder;
             Vector3 targetScale = new Vector3(1.2f, 1.2f, 1.2f);
             AnimeManager.Scale(transform, "CardHover", targetScale, 0.3f, useDebugLog: false);
-            group.sortingOrder = originalSortingOrder + 50;
+            group.sortingOrder = originalSortingOrder + HoverSortingOffset;
         }
     }
     public void OnPointerExit(PointerEventData eventData)
@@ -168,7 +185,10 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
         }
 
         RestorePointerExitTransform(Vector3.one, transform.localRotation);
-        group.sortingOrder = originalSortingOrder;
+        if (group != null && group.sortingOrder == originalSortingOrder + HoverSortingOffset)
+        {
+            group.sortingOrder = originalSortingOrder;
+        }
     }
 
     private void RestorePointerExitTransform(Vector3 targetScale, Quaternion targetRotation)

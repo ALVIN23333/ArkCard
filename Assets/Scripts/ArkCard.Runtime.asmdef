@@ -1,0 +1,17 @@
+{
+    "name": "ArkCard.Runtime",
+    "references": [
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "PrimeTween.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

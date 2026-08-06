@@ -7,4 +7,6 @@
         public const int turnDraw = 1;// 每回合抽牌数
         public const int costMax = 10;// 部署费用上限
         public const int fieldMax = 5;// 场上随从上限
+        public const int handMax = 10;//最大手牌数
+        public const int librarymax = 30;//最大牌库数
     }

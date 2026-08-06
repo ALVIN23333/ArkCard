@@ -14,12 +14,13 @@ public class PlayerController : MonoBehaviour
     public int maxCost;
     public bool isMainPlayer;
     public bool isInTurn;
+    public bool IsAIControlled;
 
     [HideInInspector]
     public List<CardController> deckCards = new List<CardController>();
     [HideInInspector]
     public List<CardController> graveCards = new List<CardController>();
-    private DeckData deckData;
+    public DeckData deckData = new DeckData();
     private AnimeSequence sequence;
 
     [Header("GameObject References")]
@@ -38,7 +39,10 @@ public class PlayerController : MonoBehaviour
         cost = 0;
         maxCost = 0;
         isInTurn = false;
-        deckData = new DeckData();
+        if (deckData == null)
+        {
+            deckData = new DeckData();
+        }
         prefab=GM.Ins.BM.cardPrefab;
         if(fieldController != null &&fieldController.player==null)
             fieldController.player = this;
@@ -49,15 +53,7 @@ public class PlayerController : MonoBehaviour
             cardList = Resources.Load<CardListSO>("ArkCardsDatabase");
         }
 
-        for(int i = 0; i < 2; i++)
-        {
-            for(int j = 1001;j<1011;j++)
-            {
-                deckData.deck.Add(j);
-            }
-        }
-        deckData.deck.AddRange(new List<int>() { 1101, 1102, 1103,1104 });
-        deckData.deck.AddRange(new List<int>() { 1101, 1102, 1103,1104 });
+        LoadAssignedDeck();
         foreach (int i in deckData.deck)
         {
             CardData data = cardList != null ? cardList.GetData(i) : null;
@@ -75,6 +71,40 @@ public class PlayerController : MonoBehaviour
         UpdateCostUI();
         UpdateHealthUI();
     }
+
+    private void LoadAssignedDeck()
+    {
+        DeckListSO deckDb = GM.Ins != null && GM.Ins.DM != null ? GM.Ins.DM.decks : null;
+        if (deckDb == null)
+        {
+            deckDb = Resources.Load<DeckListSO>("DeckListDatabase");
+        }
+
+        int deckIndex = isMainPlayer
+            ? (deckDb != null ? deckDb.playerDeckIndex : -1)
+            : (deckDb != null ? deckDb.aiDeckIndex : -1);
+        DeckData assignedDeck = deckDb != null ? deckDb.GetDeck(deckIndex) : null;
+        if (assignedDeck != null)
+        {
+            deckData.name = assignedDeck.name;
+            if (deckData.deck == null)
+            {
+                deckData.deck = new List<int>();
+            }
+            deckData.deck.Clear();
+            deckData.deck.AddRange(assignedDeck.deck);
+        }
+        else
+        {
+            deckData.name = "空卡组";
+            if (deckData.deck == null)
+            {
+                deckData.deck = new List<int>();
+            }
+            deckData.deck.Clear();
+            Debug.LogWarning($"[PlayerController] 未找到有效卡组（index={deckIndex}），使用空卡组开局。");
+        }
+    }
     public void shuffleDeck()
     {
         for (int i = 0; i < deckCards.Count; i++)
@@ -84,6 +114,32 @@ public class PlayerController : MonoBehaviour
             deckCards[i] = deckCards[rad];
             deckCards[rad] = temp;
         }
+    }
+    public void DrawCard()
+    {
+        if (deckCards.Count <= 0)
+        {
+            return;
+        }
+
+        CardController card = deckCards[0];
+        deckCards.RemoveAt(0);
+
+        if (handController != null && handController.handCards.Count >= GameConst.handMax)
+        {
+            TargetManager targetManager = GM.Ins != null && GM.Ins.BM != null ? GM.Ins.BM.TM : null;
+            if (targetManager != null)
+            {
+                targetManager.ShowCardHangingThenSendToGraveyard(card);
+            }
+            else
+            {
+                SendCardToGraveyard(card);
+            }
+            return;
+        }
+
+        handController.AddCard(card);
     }
     public virtual void StartTurn()
     {
@@ -158,6 +214,30 @@ public class PlayerController : MonoBehaviour
         }
 
         cost += value;
+        UpdateCostUI();
+    }
+
+    public void SetHealth(int value)
+    {
+        health = Mathf.Max(0, value);
+        UpdateHealthUI();
+    }
+
+    public void SetMaxHealth(int value)
+    {
+        maxHealth = Mathf.Max(0, value);
+        UpdateHealthUI();
+    }
+
+    public void SetCost(int value)
+    {
+        cost = Mathf.Max(0, value);
+        UpdateCostUI();
+    }
+
+    public void SetMaxCost(int value)
+    {
+        maxCost = Mathf.Max(0, value);
         UpdateCostUI();
     }
 

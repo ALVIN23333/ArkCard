@@ -1,0 +1,13 @@
+{
+    "name": "ArkCard.EditMode.Tests",
+    "references": [
+        "ArkCard.Runtime",
+        "ArkCard.Editor"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ]
+}

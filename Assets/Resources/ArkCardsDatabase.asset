@@ -20,111 +20,141 @@ MonoBehaviour:
     attack: 2
     health: 1
     image: {fileID: 21300000, guid: 16ed2831b3a681a45991fbea7abb2916, type: 3}
-    effectDescription: "\u51B2\u950B\\n\u4EA1\u8BED\uFF1A\u6CD5\u529B\u4E0A\u9650+1"
+    effectDescription: "<b>\u51B2\u950B\\n\u4EA1\u8BED</b>\uFF1A\u6CD5\u529B\u4E0A\u9650+1"
     effects:
     - triggerType: 4
-      conditionTypes:
-      - 0
+      conditionTypes: 00000000
       effectType: 8
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
-    passiveType: 1
+    passiveTypes: 01000000
+    aiRole: 2
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 4
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 2
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1002
     cardType: 1
     name: W
     cost: 5
-    attack: 4
-    health: 4
+    attack: 3
+    health: 3
     image: {fileID: 21300000, guid: 6101c4b445c463240872942fae503d4e, type: 3}
-    effectDescription: "\u6218\u543C\uFF1A\u5BF9\u6240\u6709\u5176\u4ED6\u89D2\u8272\u9020\u62105\u70B9\u4F24\u5BB3"
+    effectDescription: "<b>\u6218\u543C</b>\uFF1A\u5BF9\u6240\u6709\u5176\u4ED6\u89D2\u8272\u9020\u62104\u70B9\u4F24\u5BB3"
     effects:
     - triggerType: 3
-      conditionTypes:
-      - 0
+      conditionTypes: 00000000
       effectType: 6
-      effectValues: 05000000
+      effectValues: 04000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 
+    aiRole: 2
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 3
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 4
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1003
     cardType: 1
     name: "\u534E\u6CD5\u7433"
     cost: 4
-    attack: 4
+    attack: 3
     health: 4
     image: {fileID: 21300000, guid: 7d42c38eec5f4214aba629e7806792f6, type: 3}
-    effectDescription: "\u4EA1\u8BED\uFF1A\u9009\u62E9\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE-4/-0"
+    effectDescription: "<b>\u5632\u8BBD\uFF0C\u5723\u76FE\\n\u4EA1\u8BED</b>\uFF1A\u9009\u62E9\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE-2/-2"
     effects:
     - triggerType: 4
-      conditionTypes:
-      - 0
-      effectType: 13
-      effectValues: fcffffff00000000
+      conditionTypes: 00000000
+      effectType: 101
+      effectValues: fefffffffeffffff
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 0300000007000000
+    aiRole: 2
+    aiPlayStyle: 2
+    aiTargetPriority: 0
+    aiBasePriority: 4
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1004
     cardType: 1
     name: 42
-    cost: 4
-    attack: 4
+    cost: 5
+    attack: 3
     health: 2
     image: {fileID: 21300000, guid: 8e0d39c948a673f42847e25fe1673b24, type: 3}
-    effectDescription: "\u542F\u52A8\uFF1A\u5BF9\u4E00\u4E2A\u654C\u4EBA\u9020\u62104\u70B9\u4F24\u5BB3"
+    effectDescription: "<b>\u542F\u52A8</b>\uFF1A\u5BF9\u4E00\u4E2A\u654C\u4EBA\u9020\u62106\u70B9\u4F24\u5BB3"
     effects:
     - triggerType: 6
-      conditionTypes:
-      - 0
-      effectType: 12
-      effectValues: 04000000
+      conditionTypes: 00000000
+      effectType: 100
+      effectValues: 06000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 
+    aiRole: 3
+    aiPlayStyle: 1
+    aiTargetPriority: 2
+    aiBasePriority: 5
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 4
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1005
     cardType: 1
     name: "\u661F\u718A"
     cost: 5
-    attack: 5
+    attack: 4
     health: 6
     image: {fileID: 21300000, guid: 5015287d22febd949ba88b2185b91cc0, type: 3}
-    effectDescription: "\u5632\u8BBD\\n\u53D7\u4F24\u65F6+1/+1"
+    effectDescription: "<b>\u5632\u8BBD\uFF0C\u9B54\u514D</b>\\n\u53D7\u4F24\u65F6+1/+1"
     effects:
     - triggerType: 5
-      conditionTypes:
-      - 0
+      conditionTypes: 00000000
       effectType: 2
       effectValues: 0100000001000000
       thenEffects: []
       elseEffects: []
-    passiveType: 2
+    passiveTypes: 030000000a000000
+    aiRole: 2
+    aiPlayStyle: 2
+    aiTargetPriority: 0
+    aiBasePriority: 6
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1006
     cardType: 1
     name: "\u783E"
-    cost: 1
-    attack: 2
+    cost: 2
+    attack: 1
     health: 1
     image: {fileID: 21300000, guid: 3cdebf3f6f5f43046a8317a4d42a07d0, type: 3}
-    effectDescription: "\u6218\u543C\uFF1A\u9009\u62E9\u4E00\u4E2A\u968F\u4ECE\u56DE\u5230\u62E5\u6709\u8005\u7684\u624B\u724C"
+    effectDescription: "<b>\u6218\u543C</b>\uFF1A\u9009\u62E9\u4E00\u4E2A\u968F\u4ECE\u56DE\u5230\u62E5\u6709\u8005\u7684\u624B\u724C"
     effects:
     - triggerType: 3
-      conditionTypes:
-      - 0
-      effectType: 18
+      conditionTypes: 00000000
+      effectType: 106
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 
+    aiRole: 4
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 3
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1007
@@ -132,75 +162,95 @@ MonoBehaviour:
     name: "\u7A7A"
     cost: 3
     attack: 1
-    health: 1
+    health: 2
     image: {fileID: 21300000, guid: 3d31ab72ee0c93b42a1e4f64ff1dc304, type: 3}
     effectDescription: "\u56DE\u5408\u7ED3\u675F\u65F6\uFF0C\u6240\u6709\u53CB\u65B9\u968F\u4ECE+1/+1"
     effects:
     - triggerType: 2
-      conditionTypes:
-      - 0
+      conditionTypes: 00000000
       effectType: 3
       effectValues: 0100000001000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 
+    aiRole: 4
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 5
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1008
     cardType: 1
     name: "\u827E\u96C5\u6CD5\u62C9"
     cost: 9
-    attack: 7
-    health: 7
+    attack: 5
+    health: 5
     image: {fileID: 21300000, guid: f2711d4a594c4f545bf55fc8fb115ff6, type: 3}
-    effectDescription: "\u6218\u543C\uFF1A\u5BF9\u6240\u6709\u654C\u65B9\u89D2\u8272\u9020\u62105\u70B9\u4F24\u5BB3"
+    effectDescription: "<b>\u5438\u8840\\n\u6218\u543C</b>\uFF1A\u5BF9\u6240\u6709\u654C\u65B9\u89D2\u8272\u9020\u62103\u70B9\u4F24\u5BB3"
     effects:
     - triggerType: 3
-      conditionTypes:
-      - 0
+      conditionTypes: 00000000
       effectType: 7
-      effectValues: 05000000
+      effectValues: 03000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 08000000
+    aiRole: 3
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 6
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 8
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1009
     cardType: 1
     name: "\u62C9\u666E\u5170\u5FB7"
     cost: 4
-    attack: 5
+    attack: 4
     health: 4
     image: {fileID: 21300000, guid: 2d80a957a19eb194cbb36b2b650474bb, type: 3}
-    effectDescription: "\u6218\u543C\uFF1A\u6C89\u9ED8\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE"
+    effectDescription: "<b>\u6218\u543C</b>\uFF1A\u6C89\u9ED8\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE"
     effects:
     - triggerType: 3
-      conditionTypes:
-      - 0
-      effectType: 14
+      conditionTypes: 00000000
+      effectType: 102
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 00000000
+    aiRole: 1
+    aiPlayStyle: 2
+    aiTargetPriority: 4
+    aiBasePriority: 5
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 2
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1010
     cardType: 1
     name: "\u80FD\u5929\u4F7F"
-    cost: 3
-    attack: 3
-    health: 3
+    cost: 4
+    attack: 2
+    health: 2
     image: {fileID: 21300000, guid: 1d95cbcba77f46540ab76d73d9bf9d95, type: 3}
-    effectDescription: "\u6218\u543C\uFF1A\u9009\u62E9\u4E24\u4E2A\u654C\u65B9\u89D2\u8272\u5206\u522B\u9020\u62103\u70B9\u4F24\u5BB3"
+    effectDescription: "<b>\u5267\u6BD2\\n\u6218\u543C</b>\uFF1A\u9009\u62E9\u4E24\u4E2A\u654C\u65B9\u89D2\u8272\u5206\u522B\u9020\u62101\u70B9\u4F24\u5BB3"
     effects:
     - triggerType: 3
-      conditionTypes:
-      - 0
-      effectType: 12
-      effectValues: 0300000002000000
+      conditionTypes: 00000000
+      effectType: 100
+      effectValues: 0100000002000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 09000000
+    aiRole: 2
+    aiPlayStyle: 0
+    aiTargetPriority: 2
+    aiBasePriority: 4
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 2
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1101
@@ -213,51 +263,72 @@ MonoBehaviour:
     effectDescription: "\u62BD\u4E24\u5F20\u5361"
     effects:
     - triggerType: 0
-      conditionTypes:
-      - 0
+      conditionTypes: 00000000
       effectType: 1
       effectValues: 02000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 
+    aiRole: 5
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 4
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1102
     cardType: 2
     name: "\u90AA\u6076\u4E4B\u82B1"
-    cost: 2
+    cost: 4
     attack: 0
     health: 0
     image: {fileID: 21300000, guid: 505ac2801d909d6499cd302195929b64, type: 3}
-    effectDescription: "\u5C061\u4E2A\u654C\u65B9\u968F\u4ECE\u79FB\u56DE\u624B\u724C"
+    effectDescription: "\u5C061\u4E2A\u654C\u65B9\u968F\u4ECE\u79FB\u56DE\u624B\u724C\uFF0C\u4F7F\u6240\u6709\u53CB\u65B9\u968F\u4ECE+1/+1"
     effects:
     - triggerType: 0
-      conditionTypes:
-      - 3
-      effectType: 20
-      effectValues: 01000000
+      conditionTypes: 09000000
+      effectType: 108
+      effectValues: 0100000001000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    - triggerType: 0
+      conditionTypes: 
+      effectType: 3
+      effectValues: 0100000001000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 
+    aiRole: 2
+    aiPlayStyle: 2
+    aiTargetPriority: 2
+    aiBasePriority: 5
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1103
     cardType: 2
     name: "\u523A\u6740"
-    cost: 4
+    cost: 5
     attack: 0
     health: 0
     image: {fileID: 21300000, guid: 5f274785a39976a4dbda667b7a995fea, type: 3}
     effectDescription: "\u6D88\u706D\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE"
     effects:
     - triggerType: 0
-      conditionTypes:
-      - 3
-      effectType: 15
+      conditionTypes: 09000000
+      effectType: 103
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 
+    aiRole: 2
+    aiPlayStyle: 0
+    aiTargetPriority: 2
+    aiBasePriority: 6
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}
   - index: 1104
@@ -270,13 +341,149 @@ MonoBehaviour:
     effectDescription: "\u590D\u6D3B\u4E00\u4E2A\u53CB\u65B9\u968F\u4ECE"
     effects:
     - triggerType: 0
-      conditionTypes:
-      - 5
-      - 6
-      effectType: 21
+      conditionTypes: 05000000
+      effectType: 109
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
-    passiveType: 0
+    passiveTypes: 
+    aiRole: 4
+    aiPlayStyle: 0
+    aiTargetPriority: 6
+    aiBasePriority: 5
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1011
+    cardType: 1
+    name: "\u63A8\u738B"
+    cost: 2
+    attack: 2
+    health: 2
+    image: {fileID: 21300000, guid: d693ca6b8fe054945865a7f13b9567a9, type: 3}
+    effectDescription: "<b>\u6A2A\u626B</b>\\n\u56DE\u5408\u5F00\u59CB\u65F6+1/+1"
+    effects:
+    - triggerType: 1
+      conditionTypes: 00000000
+      effectType: 2
+      effectValues: 0100000001000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 05000000
+    aiRole: 1
+    aiPlayStyle: 1
+    aiTargetPriority: 0
+    aiBasePriority: 5
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 2
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1105
+    cardType: 2
+    name: ALL
+    cost: 8
+    attack: 0
+    health: 0
+    image: {fileID: 21300000, guid: 16ccc4dd689b4374a8ebb2e43877e965, type: 3}
+    effectDescription: "\u6D88\u706D\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE\uFF0C\u5BF9\u6240\u6709\u654C\u65B9\u89D2\u8272\u9020\u62104\u70B9\u4F24\u5BB3\uFF0C\u62BD2\u5F20\u724C\n"
+    effects:
+    - triggerType: 0
+      conditionTypes: 
+      effectType: 103
+      effectValues: 0500000001000000
+      thenEffects: []
+      elseEffects: []
+    - triggerType: 0
+      conditionTypes: 
+      effectType: 7
+      effectValues: 04000000
+      thenEffects: []
+      elseEffects: []
+    - triggerType: 0
+      conditionTypes: 
+      effectType: 1
+      effectValues: 02000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 
+    aiRole: 3
+    aiPlayStyle: 0
+    aiTargetPriority: 2
+    aiBasePriority: 7
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 10
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1106
+    cardType: 2
+    name: "\u6295\u964D\u4E86"
+    cost: 0
+    attack: 0
+    health: 0
+    image: {fileID: 21300000, guid: 1143294b087c0034d95adf02ec66dfc9, type: 3}
+    effectDescription: "\u4F7F\u4E00\u4E2A\u53CB\u65B9\u968F\u4ECE\u8FD4\u56DE\u624B\u724C\uFF0C\u589E\u52A02\u70B9\u6CD5\u529B\u503C"
+    effects:
+    - triggerType: 0
+      conditionTypes: 08000000
+      effectType: 107
+      effectValues: 0000000001000000
+      thenEffects: []
+      elseEffects: []
+    - triggerType: 0
+      conditionTypes: 
+      effectType: 9
+      effectValues: 02000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 
+    aiRole: 4
+    aiPlayStyle: 3
+    aiTargetPriority: 6
+    aiBasePriority: 6
+    aiComboReserveThreshold: 4
+    aiLethalBonus: 0
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1012
+    cardType: 1
+    name: "\u963F\u7C73\u5A051"
+    cost: 2
+    attack: 2
+    health: 1
+    image: {fileID: 21300000, guid: 1b95c6e2ad9990b4490945bc13526dfd, type: 3}
+    effectDescription: "<b>\u6F5C\u884C\\n\u6218\u543C</b>\uFF1A\u4E3A\u6240\u6709\u53CB\u65B9\u89D2\u8272\u56DE\u590D2\u70B9\u751F\u547D\u503C"
+    effects:
+    - triggerType: 3
+      conditionTypes: 
+      effectType: 5
+      effectValues: 02000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 04000000
+    aiRole: 4
+    aiPlayStyle: 2
+    aiTargetPriority: 0
+    aiBasePriority: 4
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1013
+    cardType: 1
+    name: "\u963F\u7C73\u5A052"
+    cost: 7
+    attack: 3
+    health: 6
+    image: {fileID: 21300000, guid: b204484532e50b546bc56e281592beaa, type: 3}
+    effectDescription: "<b>\u51B2\u950B\uFF0C\u98CE\u6012\uFF0C\u5723\u76FE\uFF0C\u5632\u8BBD\uFF0C\u9B54\u514D</b>"
+    effects: []
+    passiveTypes: 010000000600000007000000030000000a000000
+    aiRole: 3
+    aiPlayStyle: 1
+    aiTargetPriority: 0
+    aiBasePriority: 6
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 5
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}

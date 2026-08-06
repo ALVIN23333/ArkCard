@@ -141,7 +141,8 @@ public class EffectManager : MonoBehaviour
 
             AnimeManager.PlayTriggerAnimation(trigger.source, () =>
             {
-                ExecuteEffectList(trigger.source, matchingEffects, trigger.selectedTargets, () =>
+                CardEffectContext context = new(trigger.triggerType == TriggerType.Died);
+                ExecuteEffectList(trigger.source, matchingEffects, trigger.selectedTargets, context, () =>
                 {
                     void CompleteTrigger()
                     {
@@ -164,6 +165,7 @@ public class EffectManager : MonoBehaviour
         isProcessingTriggerQueue = false;
         if (GM.Ins != null && GM.Ins.BM != null)
         {
+            RefreshAllFields(GM.Ins.BM);
             GM.Ins.BM.CheckGameOver();
         }
     }
@@ -186,6 +188,7 @@ public class EffectManager : MonoBehaviour
 
         return matchingEffects;
     }
+
     private void ExecuteEffects(CardController source, TriggerType triggerType, bool executeAllEffects, List<UnityEngine.Object> selectedTargets, Action onComplete)
     {
         if (source.cardData.effects == null || source.cardData.effects.Count == 0)
@@ -203,10 +206,15 @@ public class EffectManager : MonoBehaviour
             }
         }
 
-        ExecuteEffectList(source, matchingEffects, selectedTargets, onComplete);
+        ExecuteEffectList(source, matchingEffects, selectedTargets, new CardEffectContext(false), onComplete);
     }
 
-    private void ExecuteEffectList(CardController source, List<CardEffectData> effects, List<UnityEngine.Object> selectedTargets, Action onComplete)
+    private void ExecuteEffectList(
+        CardController source,
+        List<CardEffectData> effects,
+        List<UnityEngine.Object> selectedTargets,
+        CardEffectContext context,
+        Action onComplete)
     {
         if (!HasEffects(effects))
         {
@@ -214,12 +222,18 @@ public class EffectManager : MonoBehaviour
             return;
         }
 
-        ExecuteEffectListAtIndex(source, effects, 0, selectedTargets, onComplete);
+        ExecuteEffectListAtIndex(source, effects, 0, selectedTargets, context, onComplete);
     }
 
-    private void ExecuteEffectListAtIndex(CardController source, List<CardEffectData> effects, int index, List<UnityEngine.Object> selectedTargets, Action onComplete)
+    private void ExecuteEffectListAtIndex(
+        CardController source,
+        List<CardEffectData> effects,
+        int index,
+        List<UnityEngine.Object> selectedTargets,
+        CardEffectContext context,
+        Action onComplete)
     {
-        if (!HasEffects(effects) || index >= effects.Count)
+        if (context == null || context.IsCancelled || !HasEffects(effects) || index >= effects.Count)
         {
             onComplete?.Invoke();
             return;
@@ -228,7 +242,7 @@ public class EffectManager : MonoBehaviour
         CardEffectData effect = effects[index];
         if (effect == null)
         {
-            ExecuteEffectListAtIndex(source, effects, index + 1, selectedTargets, onComplete);
+            ExecuteEffectListAtIndex(source, effects, index + 1, selectedTargets, context, onComplete);
             return;
         }
 
@@ -236,10 +250,16 @@ public class EffectManager : MonoBehaviour
             source,
             effect,
             selectedTargets,
-            () => ExecuteEffectListAtIndex(source, effects, index + 1, selectedTargets, onComplete));
+            context,
+            () => ExecuteEffectListAtIndex(source, effects, index + 1, selectedTargets, context, onComplete));
     }
 
-    private void ResolveEffect(CardController source, CardEffectData effect, List<UnityEngine.Object> selectedTargets, Action onComplete)
+    private void ResolveEffect(
+        CardController source,
+        CardEffectData effect,
+        List<UnityEngine.Object> selectedTargets,
+        CardEffectContext context,
+        Action onComplete)
     {
         if (effect == null)
         {
@@ -253,7 +273,7 @@ public class EffectManager : MonoBehaviour
 
         if (hasConditions && hasBranches)
         {
-            ExecuteEffectList(source, passed ? effect.thenEffects : effect.elseEffects, selectedTargets, onComplete);
+            ExecuteEffectList(source, passed ? effect.thenEffects : effect.elseEffects, selectedTargets, context, onComplete);
             return;
         }
 
@@ -263,453 +283,37 @@ public class EffectManager : MonoBehaviour
             return;
         }
 
-        ExecuteSingleEffect(source, effect, selectedTargets, onComplete);
+        ExecuteSingleEffect(source, effect, selectedTargets, context, onComplete);
     }
 
-    private void ExecuteSingleEffect(CardController source, CardEffectData effect, List<UnityEngine.Object> selectedTargets, Action onComplete)
+    private void ExecuteSingleEffect(
+        CardController source,
+        CardEffectData effect,
+        List<UnityEngine.Object> selectedTargets,
+        CardEffectContext context,
+        Action onComplete)
     {
-        switch (effect.effectType)
+        ICardEffectDefinition definition = EffectRegistry.Get(effect.effectType);
+        if (definition.EffectType != EffectType.None && !definition.IsTargeted)
         {
-            case EffectType.Draw:
-                GM.Ins.BM.DrawCard(source.player, GetEffectValue(effect, 0));
-                onComplete?.Invoke();
-                break;
-            case EffectType.BuffSelf:
-                source.AddStats(GetEffectValue(effect, 0), GetEffectValue(effect, 1));
-                onComplete?.Invoke();
-                break;
-            case EffectType.BuffAlliesAll:
-                BuffAllies(source, GetEffectValue(effect, 0), GetEffectValue(effect, 1));
-                onComplete?.Invoke();
-                break;
-            case EffectType.BuffAllEnemies:
-                BuffEnemies(source, GetEffectValue(effect, 0), GetEffectValue(effect, 1));
-                onComplete?.Invoke();
-                break;
-            case EffectType.healAlliesAll:
-                HealAllies(source, GetEffectValue(effect, 0));
-                onComplete?.Invoke();
-                break;
-            case EffectType.DamageAll:
-                DamageCharacters(source, GetEffectValue(effect, 0), false);
-                onComplete?.Invoke();
-                break;
-            case EffectType.DamageAllEnemy:
-                DamageCharacters(source, GetEffectValue(effect, 0), true);
-                onComplete?.Invoke();
-                break;
-            case EffectType.AddCostMax:
-                source.player.AddMaxCost(GetEffectValue(effect, 0));
-                onComplete?.Invoke();
-                break;
-            case EffectType.AddCost:
-                source.player.AddCost(GetEffectValue(effect, 0));
-                onComplete?.Invoke();
-                break;
-            case EffectType.AddBothCost:
-                AddCostAndMaxCost(source.player, GetEffectValue(effect, 0));
-                onComplete?.Invoke();
-                break;
-            case EffectType.DisCard:
-                DiscardRandomCards(source.player, GetEffectValue(effect, 0));
-                onComplete?.Invoke();
-                break;
-            case EffectType.DealDamageToEnemy:
-                ResolveSelectedTargets(source, GetEnemyCharacterTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    DamageSelectedTargets(targets, GetEffectValue(effect, 0));
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.AllyBackHand:
-                ResolveSelectedTargets(source, GetAllyFieldTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    ReturnSelectedTargetsToOwnerHand(targets);
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.EnemyBackHand:
-                ResolveSelectedTargets(source, GetEnemyFieldTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    ReturnSelectedTargetsToOwnerHand(targets);
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.OtherBackHand:
-                ResolveSelectedTargets(source, GetOtherFieldTargets(source), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    ReturnSelectedTargetsToOwnerHand(targets);
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.BuffEnemy:
-                ResolveSelectedTargets(source, GetEnemyFieldTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    BuffSelectedTargets(targets, GetEffectValue(effect, 0), GetEffectValue(effect, 1));
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.BuffAlly:
-                ResolveSelectedTargets(source, GetAllyFieldTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    BuffSelectedTargets(targets, GetEffectValue(effect, 0), GetEffectValue(effect, 1));
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.SlienceEnemy:
-                ResolveSelectedTargets(source, GetEnemyFieldTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    SilenceSelectedTargets(targets);
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.DestoryEnemy:
-                ResolveSelectedTargets(source, GetEnemyFieldTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    DestroySelectedTargets(targets);
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.HealAlly:
-                ResolveSelectedTargets(source, GetAllyFieldTargets(source.player), GetSelectionCount(effect), TargetSelectionZone.Field, selectedTargets, targets =>
-                {
-                    HealSelectedTargets(targets, GetEffectValue(effect, 0));
-                    onComplete?.Invoke();
-                });
-                break;
-            case EffectType.ReviveAlly:
-                ResolveSelectedTargets(source, GetAllyGraveyardMinionTargets(source.player), GetReviveSelectionCount(source, effect), TargetSelectionZone.Graveyard, selectedTargets, targets =>
-                {
-                    ReviveSelectedAllies(source.player, targets);
-                    onComplete?.Invoke();
-                });
-                break;
-            default:
-                onComplete?.Invoke();
-                break;
+            context.CommitEffect();
         }
-    }
-    private void BuffAllies(CardController source, int attackValue, int healthValue)
-    {
-        if (source == null || source.player == null || source.player.fieldController == null)
+
+        if (!definition.IsTargeted)
         {
+            definition.ApplyRuntime(context, source, effect, null, onComplete);
             return;
         }
 
-        List<CardController> allies = new(source.player.fieldController.fieldCards);
-        foreach (CardController ally in allies)
-        {
-            if (ally != null)
-            {
-                ally.AddStats(attackValue, healthValue);
-            }
-        }
-    }
-
-    private void BuffEnemies(CardController source, int attackValue, int healthValue)
-    {
-        if (source == null || source.player == null || GM.Ins == null || GM.Ins.BM == null)
-        {
-            return;
-        }
-
-        foreach (PlayerController player in GM.Ins.BM.players)
-        {
-            if (player == null || player == source.player || player.fieldController == null)
-            {
-                continue;
-            }
-
-            List<CardController> enemies = new(player.fieldController.fieldCards);
-            foreach (CardController enemy in enemies)
-            {
-                if (enemy != null)
-                {
-                    enemy.AddStats(attackValue, healthValue);
-                }
-            }
-        }
-    }
-
-    private void HealAllies(CardController source, int healValue)
-    {
-        if (source == null || source.player == null || healValue <= 0)
-        {
-            return;
-        }
-
-        source.player.Heal(healValue);
-        if (source.player.fieldController == null)
-        {
-            return;
-        }
-
-        List<CardController> allies = new(source.player.fieldController.fieldCards);
-        foreach (CardController ally in allies)
-        {
-            if (ally != null)
-            {
-                ally.Heal(healValue);
-            }
-        }
-    }
-
-    private void AddCostAndMaxCost(PlayerController player, int costValue)
-    {
-        if (player == null || costValue <= 0)
-        {
-            return;
-        }
-
-        player.AddMaxCost(costValue);
-        player.AddCost(costValue);
-    }
-
-    private void DiscardRandomCards(PlayerController player, int discardCount)
-    {
-        if (player == null || player.handController == null || discardCount <= 0)
-        {
-            return;
-        }
-
-        List<CardController> handCards = new(player.handController.handCards);
-        for (int i = 0; i < discardCount && handCards.Count > 0; i++)
-        {
-            int randomIndex = UnityEngine.Random.Range(0, handCards.Count);
-            CardController card = handCards[randomIndex];
-            handCards.RemoveAt(randomIndex);
-
-            if (card != null)
-            {
-                player.SendCardToGraveyard(card);
-            }
-        }
-    }
-
-    private void DamageCharacters(CardController source, int damageValue, bool enemyOnly)
-    {
-        if (damageValue <= 0 || source == null || GM.Ins == null || GM.Ins.BM == null)
-        {
-            return;
-        }
-
-        foreach (PlayerController player in GM.Ins.BM.players)
-        {
-            if (player == null)
-            {
-                continue;
-            }
-
-            bool isEnemy = player != source.player;
-            if (enemyOnly && !isEnemy)
-            {
-                continue;
-            }
-
-            player.Damage(damageValue);
-        }
-
-        List<CardController> targets = new();
-        foreach (PlayerController player in GM.Ins.BM.players)
-        {
-            if (player == null || player.fieldController == null)
-            {
-                continue;
-            }
-
-            foreach (CardController card in player.fieldController.fieldCards)
-            {
-                if (card == null)
-                {
-                    continue;
-                }
-
-                if (!enemyOnly && card == source)
-                {
-                    continue;
-                }
-
-                if (enemyOnly && card.player == source.player)
-                {
-                    continue;
-                }
-
-                targets.Add(card);
-            }
-        }
-
-        foreach (CardController target in targets)
-        {
-            target.Damage(damageValue);
-        }
-    }
-
-    private void DamageSelectedTargets(List<UnityEngine.Object> selectedTargets, int damageValue)
-    {
-        if (damageValue <= 0 || selectedTargets == null)
-        {
-            return;
-        }
-
-        foreach (UnityEngine.Object target in selectedTargets)
-        {
-            if (target is CardController targetCard)
-            {
-                targetCard.Damage(damageValue);
-                continue;
-            }
-
-            if (target is PlayerController targetPlayer)
-            {
-                targetPlayer.Damage(damageValue);
-            }
-        }
-    }
-
-    private void BuffSelectedTargets(List<UnityEngine.Object> selectedTargets, int attackValue, int healthValue)
-    {
-        if (selectedTargets == null)
-        {
-            return;
-        }
-
-        foreach (UnityEngine.Object target in selectedTargets)
-        {
-            if (target is CardController targetCard)
-            {
-                targetCard.AddStats(attackValue, healthValue);
-            }
-        }
-    }
-
-    private void HealSelectedTargets(List<UnityEngine.Object> selectedTargets, int healValue)
-    {
-        if (healValue <= 0 || selectedTargets == null)
-        {
-            return;
-        }
-
-        foreach (UnityEngine.Object target in selectedTargets)
-        {
-            if (target is CardController targetCard)
-            {
-                targetCard.Heal(healValue);
-            }
-        }
-    }
-
-    private void SilenceSelectedTargets(List<UnityEngine.Object> selectedTargets)
-    {
-        if (selectedTargets == null)
-        {
-            return;
-        }
-
-        foreach (UnityEngine.Object target in selectedTargets)
-        {
-            if (target is not CardController targetCard)
-            {
-                continue;
-            }
-
-            targetCard.isSilence = true;
-            if (targetCard.cardDisplay != null)
-            {
-                targetCard.cardDisplay.UpdateCard();
-            }
-        }
-    }
-
-    private void DestroySelectedTargets(List<UnityEngine.Object> selectedTargets)
-    {
-        if (selectedTargets == null)
-        {
-            return;
-        }
-
-        foreach (UnityEngine.Object target in selectedTargets)
-        {
-            if (target is not CardController targetCard
-                || targetCard.player == null
-                || targetCard.state == CardState.Graveyard)
-            {
-                continue;
-            }
-
-            targetCard.Kill();
-        }
-    }
-
-    private void ReturnSelectedTargetsToOwnerHand(List<UnityEngine.Object> selectedTargets)
-    {
-        if (selectedTargets == null)
-        {
-            return;
-        }
-
-        foreach (UnityEngine.Object target in selectedTargets)
-        {
-            if (target is not CardController targetCard
-                || targetCard.player == null
-                || targetCard.player.handController == null)
-            {
-                continue;
-            }
-
-            if (targetCard.player.graveCards.Contains(targetCard))
-            {
-                targetCard.player.graveCards.Remove(targetCard);
-                targetCard.player.RefreshGraveyardSorting();
-            }
-
-            if (targetCard.player.fieldController != null && targetCard.player.fieldController.fieldCards.Contains(targetCard))
-            {
-                targetCard.player.fieldController.RemoveCard(targetCard);
-            }
-
-            PlayerController owner = targetCard.player;
-            CardData data = targetCard.cardData;
-            targetCard.transform.localScale = Vector3.one;
-            targetCard.Init(data, owner);
-            if (targetCard.cardDisplay != null)
-            {
-                targetCard.cardDisplay.ShowBack(!owner.isMainPlayer);
-            }
-            owner.handController.AddCard(targetCard);
-        }
-    }
-
-    private void ReviveSelectedAllies(PlayerController owner, List<UnityEngine.Object> selectedTargets)
-    {
-        if (owner == null || owner.fieldController == null || selectedTargets == null)
-        {
-            return;
-        }
-
-        foreach (UnityEngine.Object target in selectedTargets)
-        {
-            if (owner.fieldController.fieldCards.Count >= GameConst.fieldMax)
-            {
-                return;
-            }
-
-            if (target is not CardController targetCard
-                || targetCard.player != owner
-                || targetCard.cardData == null
-                || targetCard.cardData.cardType != CardType.Minion
-                || !owner.graveCards.Contains(targetCard))
-            {
-                continue;
-            }
-
-            owner.graveCards.Remove(targetCard);
-            owner.RefreshGraveyardSorting();
-
-            CardData data = targetCard.cardData;
-            targetCard.transform.localScale = Vector3.one;
-            targetCard.Init(data, owner);
-            owner.fieldController.AddCard(targetCard);
-        }
+        ResolveSelectedTargets(
+            source,
+            effect,
+            definition.GetRuntimeCandidates(source, effect),
+            definition.GetRuntimeSelectionCount(source, effect),
+            definition.SelectionZone,
+            selectedTargets,
+            context,
+            targets => definition.ApplyRuntime(context, source, effect, targets, onComplete));
     }
 
     public bool HasRequiredCondition(CardController card, CardEffectData effect)
@@ -774,11 +378,19 @@ public class EffectManager : MonoBehaviour
                 return HasOtherAllyMinion(source);
             case ConditionType.HasAlly:
                 return source.player.fieldController != null && source.player.fieldController.fieldCards.Count > 0;
-            case ConditionType.HasDiedMumber:
+            case ConditionType.HasDiedAlly:
                 return source.player.graveCards.Count > 0;
+            case ConditionType.HasDiedEnemy:
+                return HasDiedEnemyMinion(source.player);
             case ConditionType.HasEmptyField:
                 return source.player.fieldController != null
                     && source.player.fieldController.fieldCards.Count < GameConst.fieldMax;
+            case ConditionType.HasNonMagicalImmunityAlly:
+                return HasNonMagicalImmunityAllyMinion(source);
+            case ConditionType.HasNonMagicalImmunityEnemy:
+                return HasNonMagicalImmunityEnemyMinion(source.player);
+            case ConditionType.HasNonMagicalImmunityOther:
+                return HasNonMagicalImmunityOtherMinion(source);
             default:
                 return false;
         }
@@ -825,6 +437,97 @@ public class EffectManager : MonoBehaviour
         return false;
     }
 
+    private bool HasDiedEnemyMinion(PlayerController player)
+    {
+        if (GM.Ins == null || GM.Ins.BM == null)
+        {
+            return false;
+        }
+
+        foreach (PlayerController otherPlayer in GM.Ins.BM.players)
+        {
+            if (otherPlayer != null
+                && otherPlayer != player
+                && otherPlayer.graveCards != null
+                && otherPlayer.graveCards.Count > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasNonMagicalImmunityAllyMinion(CardController source)
+    {
+        if (source == null || source.player == null || source.player.fieldController == null)
+        {
+            return false;
+        }
+
+        foreach (CardController card in source.player.fieldController.fieldCards)
+        {
+            if (card != null && !card.HasPassive(PassiveType.MagicImmunity))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasNonMagicalImmunityEnemyMinion(PlayerController player)
+    {
+        if (GM.Ins == null || GM.Ins.BM == null)
+        {
+            return false;
+        }
+
+        foreach (PlayerController otherPlayer in GM.Ins.BM.players)
+        {
+            if (otherPlayer == null || otherPlayer == player || otherPlayer.fieldController == null)
+            {
+                continue;
+            }
+
+            foreach (CardController card in otherPlayer.fieldController.fieldCards)
+            {
+                if (card != null && !card.HasPassive(PassiveType.MagicImmunity))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasNonMagicalImmunityOtherMinion(CardController source)
+    {
+        if (source == null || GM.Ins == null || GM.Ins.BM == null)
+        {
+            return false;
+        }
+
+        foreach (PlayerController player in GM.Ins.BM.players)
+        {
+            if (player == null || player.fieldController == null)
+            {
+                continue;
+            }
+
+            foreach (CardController card in player.fieldController.fieldCards)
+            {
+                if (card != null && card != source && !card.HasPassive(PassiveType.MagicImmunity))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static bool HasEffects(List<CardEffectData> effects)
     {
         return effects != null && effects.Count > 0;
@@ -850,16 +553,22 @@ public class EffectManager : MonoBehaviour
 
     private void ResolveSelectedTargets(
         CardController source,
+        CardEffectData effect,
         List<UnityEngine.Object> candidates,
         int requiredCount,
         TargetSelectionZone zone,
         List<UnityEngine.Object> selectedTargets,
+        CardEffectContext context,
         Action<List<UnityEngine.Object>> onResolved)
     {
-        if (selectedTargets != null && selectedTargets.Count > 0)
+        void CompleteWithTargets(List<UnityEngine.Object> targets)
         {
-            onResolved?.Invoke(selectedTargets);
-            return;
+            if (targets != null && targets.Count > 0)
+            {
+                context.CommitEffect();
+            }
+
+            onResolved?.Invoke(targets);
         }
 
         if (requiredCount <= 0)
@@ -875,17 +584,38 @@ public class EffectManager : MonoBehaviour
         }
 
         int resolvedRequiredCount = Mathf.Min(Mathf.Max(1, requiredCount), candidates.Count);
+        List<UnityEngine.Object> resolvedTargets = new();
+        if (selectedTargets != null)
+        {
+            foreach (UnityEngine.Object selectedTarget in selectedTargets)
+            {
+                if (selectedTarget != null && candidates.Contains(selectedTarget) && !resolvedTargets.Contains(selectedTarget))
+                {
+                    resolvedTargets.Add(selectedTarget);
+                    if (resolvedTargets.Count >= resolvedRequiredCount)
+                    {
+                        CompleteWithTargets(resolvedTargets);
+                        return;
+                    }
+                }
+            }
+        }
+
+        List<UnityEngine.Object> remainingCandidates = new(candidates);
+        remainingCandidates.RemoveAll(candidate => resolvedTargets.Contains(candidate));
+        int remainingRequiredCount = resolvedRequiredCount - resolvedTargets.Count;
         TargetSelectionRequest request = new()
         {
             sourceCard = source,
-            candidates = candidates,
-            requiredCount = resolvedRequiredCount,
+            candidates = remainingCandidates,
+            requiredCount = remainingRequiredCount,
             zone = zone,
         };
 
         bool shouldAutoResolve =
             source == null
             || source.player == null
+            || source.player.IsAIControlled
             || !source.player.isMainPlayer
             || GM.Ins == null
             || GM.Ins.BM == null
@@ -893,17 +623,31 @@ public class EffectManager : MonoBehaviour
 
         if (shouldAutoResolve)
         {
-            onResolved?.Invoke(ChooseRandomTargets(request));
+            resolvedTargets.AddRange(AITargetSelector.SelectRuntimeTargets(
+                source,
+                effect,
+                remainingCandidates,
+                remainingRequiredCount));
+            CompleteWithTargets(resolvedTargets);
             return;
         }
 
         bool selectionStarted = GM.Ins.BM.TM.SelectTargets(
             source,
-            candidates,
+            request.candidates,
             request.requiredCount,
             zone,
-            onResolved,
-            () => onResolved?.Invoke(new List<UnityEngine.Object>()));
+            targets =>
+            {
+                resolvedTargets.AddRange(targets);
+                CompleteWithTargets(resolvedTargets);
+            },
+            () =>
+            {
+                context.Cancel();
+                onResolved?.Invoke(new List<UnityEngine.Object>());
+            },
+            context.AllowRollback);
 
         if (!selectionStarted)
         {
@@ -911,190 +655,16 @@ public class EffectManager : MonoBehaviour
         }
     }
 
-    private static List<UnityEngine.Object> ChooseRandomTargets(TargetSelectionRequest request)
+    private static void RefreshAllFields(BattleManager battleManager)
     {
-        List<UnityEngine.Object> results = new();
-        if (request == null || request.candidates == null || request.candidates.Count == 0)
+        if (battleManager == null || battleManager.players == null)
         {
-            return results;
+            return;
         }
 
-        List<UnityEngine.Object> candidates = new(request.candidates);
-        int targetCount = Mathf.Min(Mathf.Max(1, request.requiredCount), candidates.Count);
-        for (int i = 0; i < targetCount; i++)
+        foreach (PlayerController player in battleManager.players)
         {
-            int randomIndex = UnityEngine.Random.Range(0, candidates.Count);
-            results.Add(candidates[randomIndex]);
-            candidates.RemoveAt(randomIndex);
+            player?.fieldController?.RefreshField();
         }
-
-        return results;
-    }
-
-    private static List<UnityEngine.Object> GetEnemyCharacterTargets(PlayerController sourcePlayer)
-    {
-        List<UnityEngine.Object> targets = GetEnemyFieldTargets(sourcePlayer);
-        if (GM.Ins == null || GM.Ins.BM == null)
-        {
-            return targets;
-        }
-
-        foreach (PlayerController player in GM.Ins.BM.players)
-        {
-            if (player != null && player != sourcePlayer)
-            {
-                targets.Add(player);
-            }
-        }
-
-        return targets;
-    }
-
-    private static List<UnityEngine.Object> GetEnemyFieldTargets(PlayerController sourcePlayer)
-    {
-        List<UnityEngine.Object> targets = new();
-        if (GM.Ins == null || GM.Ins.BM == null)
-        {
-            return targets;
-        }
-
-        foreach (PlayerController player in GM.Ins.BM.players)
-        {
-            if (player == null || player == sourcePlayer || player.fieldController == null)
-            {
-                continue;
-            }
-
-            foreach (CardController card in player.fieldController.fieldCards)
-            {
-                if (card != null)
-                {
-                    targets.Add(card);
-                }
-            }
-        }
-
-        return targets;
-    }
-
-    private static List<UnityEngine.Object> GetAllyFieldTargets(PlayerController sourcePlayer)
-    {
-        List<UnityEngine.Object> targets = new();
-        if (sourcePlayer == null || sourcePlayer.fieldController == null)
-        {
-            return targets;
-        }
-
-        foreach (CardController card in sourcePlayer.fieldController.fieldCards)
-        {
-            if (card != null)
-            {
-                targets.Add(card);
-            }
-        }
-
-        return targets;
-    }
-
-    private static List<UnityEngine.Object> GetAllyGraveyardMinionTargets(PlayerController sourcePlayer)
-    {
-        List<UnityEngine.Object> targets = new();
-        if (sourcePlayer == null || sourcePlayer.graveCards == null)
-        {
-            return targets;
-        }
-
-        foreach (CardController card in sourcePlayer.graveCards)
-        {
-            if (card != null
-                && card.player == sourcePlayer
-                && card.state == CardState.Graveyard
-                && card.cardData != null
-                && card.cardData.cardType == CardType.Minion)
-            {
-                targets.Add(card);
-            }
-        }
-
-        return targets;
-    }
-
-    private static List<UnityEngine.Object> GetAllFieldTargets()
-    {
-        List<UnityEngine.Object> targets = new();
-        if (GM.Ins == null || GM.Ins.BM == null)
-        {
-            return targets;
-        }
-
-        foreach (PlayerController player in GM.Ins.BM.players)
-        {
-            if (player == null || player.fieldController == null)
-            {
-                continue;
-            }
-
-            foreach (CardController card in player.fieldController.fieldCards)
-            {
-                if (card != null)
-                {
-                    targets.Add(card);
-                }
-            }
-        }
-
-        return targets;
-    }
-
-    private static List<UnityEngine.Object> GetOtherFieldTargets(CardController source)
-    {
-        List<UnityEngine.Object> targets = GetAllFieldTargets();
-        if (source != null)
-        {
-            targets.Remove(source);
-        }
-
-        return targets;
-    }
-    private static int GetSelectionCount(CardEffectData effect)
-    {
-        if (effect == null || effect.effectValues == null)
-        {
-            return 1;
-        }
-
-        int index = effect.effectType == EffectType.BuffEnemy || effect.effectType == EffectType.BuffAlly ? 2 : 1;
-        if (index < 0 || index >= effect.effectValues.Length || effect.effectValues[index] <= 0)
-        {
-            return 1;
-        }
-
-        return effect.effectValues[index];
-    }
-
-    private static int GetReviveSelectionCount(CardController source, CardEffectData effect)
-    {
-        if (source == null || source.player == null || source.player.fieldController == null)
-        {
-            return 0;
-        }
-
-        int openSlots = GameConst.fieldMax - source.player.fieldController.fieldCards.Count;
-        if (openSlots <= 0)
-        {
-            return 0;
-        }
-
-        return Mathf.Min(GetSelectionCount(effect), openSlots);
-    }
-
-    private static int GetEffectValue(CardEffectData effect, int index)
-    {
-        if (effect.effectValues == null || index < 0 || index >= effect.effectValues.Length)
-        {
-            return 0;
-        }
-
-        return effect.effectValues[index];
     }
 }

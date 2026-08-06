@@ -46,6 +46,9 @@ public static class AnimeManager
 {
     public const float FieldRefreshDuration = 0.2f;
 
+    /// <summary>GM/测试用：为 true 时所有动画瞬时完成，但回调仍会同步触发。</summary>
+    public static bool Instant;
+
     public static AnimeSequence CreateSequence()
     {
         return AnimeSequence.Create();
@@ -53,6 +56,12 @@ public static class AnimeManager
 
     public static void Delay(float duration, Action onComplete)
     {
+        if (Instant)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
         Tween.Delay(duration, onComplete);
     }
 
@@ -66,7 +75,7 @@ public static class AnimeManager
         return AnimationLog.ShouldAnimate(current, target);
     }
 
-    public static void State(string context, string message, bool useDebugLog = true)
+    public static void State(string context, string message, bool useDebugLog = false)
     {
         if (useDebugLog)
         {
@@ -81,11 +90,17 @@ public static class AnimeManager
         float duration,
         int cycles = 1,
         bool yoyo = false,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localScale, targetScale))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localScale = targetScale;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "scale", target.localScale, targetScale);
@@ -93,11 +108,17 @@ public static class AnimeManager
         return true;
     }
 
-    public static bool LocalPosition(Transform target, string context, Vector3 targetPosition, float duration, bool useDebugLog = true)
+    public static bool LocalPosition(Transform target, string context, Vector3 targetPosition, float duration, bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localPosition, targetPosition))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localPosition = targetPosition;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localPosition", target.localPosition, targetPosition);
@@ -105,11 +126,17 @@ public static class AnimeManager
         return true;
     }
 
-    public static bool LocalRotation(Transform target, string context, Quaternion targetRotation, float duration, bool useDebugLog = true)
+    public static bool LocalRotation(Transform target, string context, Quaternion targetRotation, float duration, bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localRotation, targetRotation))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localRotation = targetRotation;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
@@ -123,11 +150,17 @@ public static class AnimeManager
         string context,
         Vector3 targetScale,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localScale, targetScale))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localScale = targetScale;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "scale", target.localScale, targetScale);
@@ -142,11 +175,17 @@ public static class AnimeManager
         string context,
         Vector3 targetPosition,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localPosition, targetPosition))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localPosition = targetPosition;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localPosition", target.localPosition, targetPosition);
@@ -161,11 +200,17 @@ public static class AnimeManager
         string context,
         Quaternion targetRotation,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localRotation, targetRotation))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localRotation = targetRotation;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
@@ -180,11 +225,17 @@ public static class AnimeManager
         string context,
         Quaternion targetRotation,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null)
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localRotation = targetRotation;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
@@ -199,11 +250,17 @@ public static class AnimeManager
         string context,
         Vector3 targetPosition,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.position, targetPosition))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.position = targetPosition;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "position", target.position, targetPosition);
@@ -218,11 +275,17 @@ public static class AnimeManager
         string context,
         Quaternion targetRotation,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.rotation, targetRotation))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.rotation = targetRotation;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "rotation", target.rotation, targetRotation);
@@ -239,11 +302,17 @@ public static class AnimeManager
         float duration,
         int cycles = 1,
         bool yoyo = false,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localPosition, targetPosition))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localPosition = targetPosition;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localPosition", target.localPosition, targetPosition);
@@ -258,11 +327,17 @@ public static class AnimeManager
         string context,
         Quaternion targetRotation,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null || !AnimationLog.ShouldAnimate(target.localRotation, targetRotation))
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localRotation = targetRotation;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
@@ -277,11 +352,17 @@ public static class AnimeManager
         string context,
         Quaternion targetRotation,
         float duration,
-        bool useDebugLog = true)
+        bool useDebugLog = false)
     {
         if (target == null)
         {
             return false;
+        }
+
+        if (Instant)
+        {
+            target.localRotation = targetRotation;
+            return true;
         }
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
@@ -307,6 +388,14 @@ public static class AnimeManager
 
         if (localDirection.sqrMagnitude < 0.0001f)
         {
+            onComplete?.Invoke();
+            return;
+        }
+
+        if (Instant)
+        {
+            attackerTransform.localPosition = originalLocalPosition;
+            attackerTransform.localRotation = originalLocalRotation;
             onComplete?.Invoke();
             return;
         }
@@ -349,6 +438,13 @@ public static class AnimeManager
         Vector3 triggerEuler = restLocalRotation.eulerAngles;
         triggerEuler.z += 15f;
         Quaternion triggerLocalRotation = Quaternion.Euler(triggerEuler);
+
+        if (Instant)
+        {
+            sourceTransform.localRotation = restLocalRotation;
+            onComplete?.Invoke();
+            return;
+        }
 
         AnimeSequence sequence = CreateSequence();
         bool hasAnimation = false;

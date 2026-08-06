@@ -1,0 +1,9 @@
+{
+    "name": "ArkCard.PlayMode.Tests",
+    "references": [
+        "ArkCard.Runtime"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

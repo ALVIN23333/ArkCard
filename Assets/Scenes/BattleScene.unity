@@ -837,7 +837,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 265090975}
-  - component: {fileID: 265090976}
+  - component: {fileID: 265090977}
   m_Layer: 0
   m_Name: player
   m_TagString: Untagged
@@ -865,7 +865,7 @@ Transform:
   - {fileID: 233100550}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &265090976
+--- !u!114 &265090977
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -884,8 +884,12 @@ MonoBehaviour:
   maxCost: 0
   isMainPlayer: 1
   isInTurn: 1
+  IsAIControlled: 0
   deckCards: []
   graveCards: []
+  deckData:
+    name: "\u65B0\u5361\u7EC4"
+    deck: 
   handController: {fileID: 261689679}
   fieldController: {fileID: 1387327319}
   deckCardParent: {fileID: 1300555629}
@@ -1272,7 +1276,7 @@ Transform:
   m_GameObject: {fileID: 413530188}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 11.59, y: 0, z: 2}
+  m_LocalPosition: {x: 12.6, y: 0, z: 2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1366,7 +1370,7 @@ Transform:
   m_GameObject: {fileID: 437059029}
   serializedVersion: 2
   m_LocalRotation: {x: 0.6427876, y: 0, z: 0, w: 0.7660445}
-  m_LocalPosition: {x: -0.39, y: 25.66, z: -5.28}
+  m_LocalPosition: {x: -0.13, y: 25.66, z: -5.28}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2001,7 +2005,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cardPrefab: {fileID: 8158298906750176114, guid: dccde9df8a85ab145b3bed79de5b9884, type: 3}
   players:
-  - {fileID: 265090976}
+  - {fileID: 265090977}
   - {fileID: 1989105137}
   TM: {fileID: 653210289}
   EM: {fileID: 653210288}
@@ -3804,6 +3808,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   so: {fileID: 0}
+  decks: {fileID: 0}
 --- !u!114 &1382267511
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3953,7 +3958,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c74828c521565d4aa2419ae429d76e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 265090976}
+  player: {fileID: 0}
   fieldCards: []
   gap: 3
 --- !u!1 &1508517165
@@ -4999,7 +5004,7 @@ Transform:
   m_GameObject: {fileID: 1817438943}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 6.99, y: 0, z: 0.01}
+  m_LocalPosition: {x: 9, y: 0, z: 0.01}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5145,8 +5150,12 @@ MonoBehaviour:
   maxCost: 0
   isMainPlayer: 0
   isInTurn: 0
+  IsAIControlled: 0
   deckCards: []
   graveCards: []
+  deckData:
+    name: "\u73A9\u5BB61"
+    deck: 
   handController: {fileID: 114089919}
   fieldController: {fileID: 135691019}
   deckCardParent: {fileID: 2099592992}
@@ -5154,6 +5163,13 @@ MonoBehaviour:
   costText: {fileID: 659528573}
   healthText: {fileID: 1576068621}
   actionInterval: 1.5
+  searchIterations: 300
+  searchTimeBudgetMs: 35
+  explorationConstant: 1.4
+  rolloutActionLimit: 4
+  maxRootTurns: 2
+  enableAIDebugLog: 0
+  opponentBeliefPool: {fileID: 0}
 --- !u!1 &2099592991
 GameObject:
   m_ObjectHideFlags: 0
@@ -5396,7 +5412,7 @@ Transform:
   m_GameObject: {fileID: 2144667697}
   serializedVersion: 2
   m_LocalRotation: {x: 0.6427876, y: 0, z: 0, w: 0.7660445}
-  m_LocalPosition: {x: 21.26, y: 25.66, z: -5.28}
+  m_LocalPosition: {x: 22, y: 25.66, z: -5.28}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

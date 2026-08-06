@@ -25,7 +25,16 @@ public class CardData
     [TextArea]
     public string effectDescription;
     public List<CardEffectData> effects = new();
-    public PassiveType passiveType;
+    public List<PassiveType> passiveTypes = new();
+
+    [Header("AI Configuration")]
+    public CardAIRole aiRole;
+    public AIPlayStyle aiPlayStyle;
+    public AITargetPriority aiTargetPriority;
+    public int aiBasePriority;
+    public int aiComboReserveThreshold;
+    public int aiLethalBonus;
+
     public AudioClip attackAudio;
     public AudioClip enterAudio;
 }
