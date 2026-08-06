@@ -23,9 +23,11 @@ public class AutoPlayDriver : MonoBehaviour
     private bool enableAIDebugLog;
     [SerializeField]
     private CardListSO opponentBeliefPool;
+    [SerializeField]
+    private AIModelConfig modelConfig;
 
     private float nextActionTime;
-    private MCTSPlanner planner;
+    private IAIPlanner planner;
 
     public static AutoPlayDriver GetOrCreate()
     {
@@ -102,13 +104,14 @@ public class AutoPlayDriver : MonoBehaviour
     private void OnDisable()
     {
         SetMainPlayerAIControl(false);
+        DisposePlanner();
     }
 
-    private MCTSPlanner GetPlanner()
+    private IAIPlanner GetPlanner()
     {
         if (planner == null)
         {
-            planner = new MCTSPlanner(new MCTSSettings
+            planner = AIPlannerFactory.Create(modelConfig, new MCTSSettings
             {
                 Iterations = searchIterations,
                 TimeBudgetMs = searchTimeBudgetMs,
@@ -119,6 +122,15 @@ public class AutoPlayDriver : MonoBehaviour
             });
         }
         return planner;
+    }
+
+    private void DisposePlanner()
+    {
+        if (planner is System.IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+        planner = null;
     }
 
     private static void SetMainPlayerAIControl(bool value)

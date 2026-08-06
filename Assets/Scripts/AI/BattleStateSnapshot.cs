@@ -183,6 +183,7 @@ public sealed class PlayerStateSnapshot
     public List<CardStateSnapshot> Graveyard = new();
     public List<CardStateSnapshot> DeckRemaining = new();
     public bool HandIsHidden;
+    public bool HiddenInformationMaterialized;
     public int HiddenHandCount;
     public int HiddenDeckCount;
     public List<CardData> HiddenCardPool = new();
@@ -291,6 +292,7 @@ public sealed class BattleStateSnapshot
                     player.DeckRemaining.Clear();
                     MaterializeDeck(player, pool, random, ref nextSyntheticId);
                 }
+                player.HiddenInformationMaterialized = true;
             }
             else if (player.HiddenDeckCount > 0 && player.DeckRemaining.Count > 0)
             {

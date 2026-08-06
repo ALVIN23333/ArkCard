@@ -3,7 +3,8 @@
     "references": [
         "Unity.TextMeshPro",
         "UnityEngine.UI",
-        "PrimeTween.Runtime"
+        "PrimeTween.Runtime",
+        "Unity.Barracuda"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,7 +1,8 @@
 {
     "name": "ArkCard.Editor",
     "references": [
-        "ArkCard.Runtime"
+        "ArkCard.Runtime",
+        "Unity.Barracuda"
     ],
     "includePlatforms": [
         "Editor"

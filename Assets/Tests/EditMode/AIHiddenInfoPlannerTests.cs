@@ -341,7 +341,7 @@ public class AIHiddenInfoPlannerTests
     }
 
     [Test]
-    public void PoisonousMinion_NoFaceAction_WhenEnemyMinionExists()
+    public void PoisonousMinion_FaceActionRemainsLegal_WhenEnemyMinionExists()
     {
         BattleStateSnapshot state = SimulationTestHelpers.CreateBaseState();
         CardStateSnapshot poisonous = SimulationTestHelpers.CreateCard(10, 0, CardState.Field, 3, 3, PassiveType.Poisonous, true);
@@ -349,9 +349,9 @@ public class AIHiddenInfoPlannerTests
         state.GetPlayer(1).Field.Add(SimulationTestHelpers.CreateCard(20, 1, CardState.Field, 2, 2, PassiveType.None, false));
 
         List<SimulatedAction> actions = new BattleStateSimulator().GenerateLegalActions(state);
-        Assert.IsFalse(
+        Assert.IsTrue(
             actions.Exists(action => action.Type == SimulatedActionType.AttackPlayer),
-            "Poisonous minion must not generate a hero attack while an enemy minion exists.");
+            "Legal action generation must not remove a valid hero attack because of a policy preference.");
     }
 
     [Test]

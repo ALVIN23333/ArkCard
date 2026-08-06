@@ -64,7 +64,7 @@ public sealed class BattleStateSimulator
                 {
                     if ((!hasGuard || target.HasPassive(PassiveType.Guard)) && !target.HasPassive(PassiveType.Stealth))
                     {
-                        AddAction(state, actions, new SimulatedAction
+                        AddAction(actions, new SimulatedAction
                         {
                             Type = SimulatedActionType.AttackMinion,
                             SourceCardId = attacker.RuntimeId,
@@ -72,12 +72,9 @@ public sealed class BattleStateSimulator
                         });
                     }
                 }
-                bool poisonousFaceBlocked = attacker.HasPassive(PassiveType.Poisonous)
-                    && attacker.Attack < opponent.Health
-                    && HeuristicEvaluator.HasAttackableEnemyMinion(state, attacker);
-                if (!hasGuard && attacker.CanAttackPlayer && !poisonousFaceBlocked)
+                if (!hasGuard && attacker.CanAttackPlayer)
                 {
-                    AddAction(state, actions, new SimulatedAction
+                    AddAction(actions, new SimulatedAction
                     {
                         Type = SimulatedActionType.AttackPlayer,
                         SourceCardId = attacker.RuntimeId,
@@ -87,8 +84,8 @@ public sealed class BattleStateSimulator
             }
         }
 
-        AddAction(state, actions, new SimulatedAction { Type = SimulatedActionType.EndTurn });
-        actions.Sort(CompareActions);
+        AddAction(actions, new SimulatedAction { Type = SimulatedActionType.EndTurn });
+        actions.Sort(CompareCanonicalActions);
         return actions;
     }
 
@@ -165,7 +162,22 @@ public sealed class BattleStateSimulator
         }
 
         EffectSimulationResolver.UpdateGameOver(state);
+        SynchronizeMaterializedHiddenCounts(state);
         return state;
+    }
+
+    private static void SynchronizeMaterializedHiddenCounts(BattleStateSnapshot state)
+    {
+        foreach (PlayerStateSnapshot snapshot in state.Players)
+        {
+            if (snapshot == null || !snapshot.HiddenInformationMaterialized)
+            {
+                continue;
+            }
+
+            snapshot.HiddenHandCount = snapshot.Hand.Count;
+            snapshot.HiddenDeckCount = snapshot.DeckRemaining.Count;
+        }
     }
 
     private static void StartNextTurn(BattleStateSnapshot state, Random random)
@@ -444,7 +456,7 @@ public sealed class BattleStateSimulator
         CardEffectData targetedEffect = FindFirstTargetedEffect(state, source, trigger, allEffects);
         if (targetedEffect == null)
         {
-            AddAction(state, actions, new SimulatedAction { Type = actionType, SourceCardId = source.RuntimeId });
+            AddAction(actions, new SimulatedAction { Type = actionType, SourceCardId = source.RuntimeId });
             return;
         }
 
@@ -452,28 +464,19 @@ public sealed class BattleStateSimulator
         int count = EffectRegistry.Get(targetedEffect.effectType).GetSimulationSelectionCount(state, source, targetedEffect);
         if (count <= 0 || candidates.Count == 0)
         {
-            AddAction(state, actions, new SimulatedAction { Type = actionType, SourceCardId = source.RuntimeId });
+            AddAction(actions, new SimulatedAction { Type = actionType, SourceCardId = source.RuntimeId });
             return;
         }
-        if (count == 1)
+        candidates.Sort(CompareTargets);
+        int requiredCount = Math.Min(Math.Max(0, count), candidates.Count);
+        AddTargetCombinations(candidates, requiredCount, 0, new List<SimulatedTarget>(), targets =>
         {
-            List<SimulatedTarget> sorted = AITargetSelector.SelectTargets(state, source, targetedEffect, candidates.Count, candidates);
-            foreach (SimulatedTarget target in sorted)
+            AddAction(actions, new SimulatedAction
             {
-                AddAction(state, actions, new SimulatedAction
-                {
-                    Type = actionType,
-                    SourceCardId = source.RuntimeId,
-                    Targets = new List<SimulatedTarget> { target },
-                });
-            }
-            return;
-        }
-        AddAction(state, actions, new SimulatedAction
-        {
-            Type = actionType,
-            SourceCardId = source.RuntimeId,
-            Targets = AITargetSelector.SelectTargets(state, source, targetedEffect, count, candidates),
+                Type = actionType,
+                SourceCardId = source.RuntimeId,
+                Targets = targets,
+            });
         });
     }
 
@@ -525,20 +528,52 @@ public sealed class BattleStateSimulator
 
     private static bool HasEffects(List<CardEffectData> effects) => effects != null && effects.Count > 0;
 
-    private static void AddAction(BattleStateSnapshot state, List<SimulatedAction> actions, SimulatedAction action)
+    private static void AddTargetCombinations(
+        List<SimulatedTarget> candidates,
+        int requiredCount,
+        int startIndex,
+        List<SimulatedTarget> selected,
+        Action<List<SimulatedTarget>> add)
     {
-        action.PriorHeuristic = HeuristicEvaluator.ScoreAction(state, action);
+        if (selected.Count == requiredCount)
+        {
+            add(new List<SimulatedTarget>(selected));
+            return;
+        }
+
+        int remaining = requiredCount - selected.Count;
+        for (int index = startIndex; index <= candidates.Count - remaining; index++)
+        {
+            selected.Add(candidates[index]);
+            AddTargetCombinations(candidates, requiredCount, index + 1, selected, add);
+            selected.RemoveAt(selected.Count - 1);
+        }
+    }
+
+    private static void AddAction(List<SimulatedAction> actions, SimulatedAction action)
+    {
         actions.Add(action);
     }
 
-    private static int CompareActions(SimulatedAction left, SimulatedAction right)
+    private static int CompareCanonicalActions(SimulatedAction left, SimulatedAction right)
     {
-        int prior = right.PriorHeuristic.CompareTo(left.PriorHeuristic);
-        if (prior != 0) return prior;
         int type = left.Type.CompareTo(right.Type);
         if (type != 0) return type;
         int source = left.SourceCardId.CompareTo(right.SourceCardId);
         if (source != 0) return source;
-        return left.GetHashCode().CompareTo(right.GetHashCode());
+        int targetCount = left.Targets.Count.CompareTo(right.Targets.Count);
+        if (targetCount != 0) return targetCount;
+        for (int index = 0; index < left.Targets.Count; index++)
+        {
+            int target = CompareTargets(left.Targets[index], right.Targets[index]);
+            if (target != 0) return target;
+        }
+        return 0;
+    }
+
+    private static int CompareTargets(SimulatedTarget left, SimulatedTarget right)
+    {
+        int kind = left.Kind.CompareTo(right.Kind);
+        return kind != 0 ? kind : left.Id.CompareTo(right.Id);
     }
 }

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2da4b9dcb7bf7ec40b7390ac3a4cb8b9, type: 3}
+  m_Name: DefaultAIModelConfig
+  m_EditorClassIdentifier: 
+  policyModel: {fileID: 0}
+  valueModel: {fileID: 0}
+  featureSchemaVersion: 1
+  modelVersion: untrained
+  modelChecksum: 
+  searchIterations: 192
+  timeBudgetMs: 50
+  explorationConstant: 1.5
+  determinizationCount: 4
+  maxRootTurns: 2
+  maxSearchDepth: 32
+  inferenceBackend: 512

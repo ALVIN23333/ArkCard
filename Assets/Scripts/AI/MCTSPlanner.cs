@@ -42,6 +42,9 @@ public sealed class MCTSResult
     public int CompletedIterations;
     public long ElapsedMilliseconds;
     public bool SkippedSearch;
+    public bool UsedFallback;
+    public string FallbackReason = string.Empty;
+    public string ModelVersion = string.Empty;
     public List<MCTSActionStatistics> RootStatistics = new();
 
     public string GetDebugSummary(BattleStateSnapshot rootState)
@@ -52,6 +55,14 @@ public sealed class MCTSResult
             .Append(", iterations=").Append(CompletedIterations)
             .Append(", elapsedMs=").Append(ElapsedMilliseconds)
             .Append(", skipped=").Append(SkippedSearch).AppendLine();
+        if (UsedFallback)
+        {
+            builder.Append("fallback=").Append(FallbackReason).AppendLine();
+        }
+        if (!string.IsNullOrEmpty(ModelVersion))
+        {
+            builder.Append("model=").Append(ModelVersion).AppendLine();
+        }
         foreach (MCTSActionStatistics statistics in RootStatistics.Take(5))
         {
             builder.Append("  ").Append(statistics.Action)
@@ -64,7 +75,7 @@ public sealed class MCTSResult
     }
 }
 
-public sealed class MCTSPlanner
+public sealed class MCTSPlanner : IAIPlanner
 {
     private readonly BattleStateSimulator simulator;
     private readonly MCTSSettings settings;
@@ -88,7 +99,7 @@ public sealed class MCTSPlanner
         world.MaxRootTurns = settings.MaxRootTurns;
         world.Determinize(random);
 
-        List<SimulatedAction> rootLegalActions = simulator.GenerateLegalActions(world);
+        List<SimulatedAction> rootLegalActions = LegacyActionPolicy.Rank(world, simulator.GenerateLegalActions(world));
         result.LegalActionCount = rootLegalActions.Count;
         if (rootLegalActions.Count == 0) return result;
         if (rootLegalActions.Count == 1)
@@ -178,7 +189,7 @@ public sealed class MCTSPlanner
             List<SimulatedAction> legal = node.LegalActions;
             if (legal == null)
             {
-                legal = simulator.GenerateLegalActions(state);
+                legal = LegacyActionPolicy.Rank(state, simulator.GenerateLegalActions(state));
                 node.SynchronizeLegalActions(legal, settings.MaxActionsPerNode);
             }
             if (legal.Count == 0) break;
@@ -205,7 +216,7 @@ public sealed class MCTSPlanner
 
         while (actionDepth < settings.RolloutActionLimit && !state.IsGameOver && !state.IsTurnEnded)
         {
-            List<SimulatedAction> legal = simulator.GenerateLegalActions(state);
+            List<SimulatedAction> legal = LegacyActionPolicy.Rank(state, simulator.GenerateLegalActions(state));
             if (legal.Count == 0) break;
             SimulatedAction rolloutAction = SelectRolloutAction(legal);
             state = simulator.ApplyAction(state, rolloutAction, random);

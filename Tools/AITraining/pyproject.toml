@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arkcard-ai-training"
+version = "0.1.0"
+description = "PyTorch training and ONNX export tools for ArkCard neural MCTS"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24,<3",
+    "torch>=2.2,<3",
+]
+
+[project.optional-dependencies]
+export = [
+    "onnx>=1.14,<2",
+    "onnxruntime>=1.17,<2",
+]
+dev = [
+    "pytest>=8,<9",
+]
+
+[project.scripts]
+arkcard-train = "arkcard_ai.train:main"
+arkcard-export = "arkcard_ai.export_onnx:main"
+arkcard-inspect-dataset = "arkcard_ai.inspect_dataset:main"
+arkcard-check-arena = "arkcard_ai.arena:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["arkcard_ai*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

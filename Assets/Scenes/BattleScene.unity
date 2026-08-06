@@ -5170,6 +5170,7 @@ MonoBehaviour:
   maxRootTurns: 2
   enableAIDebugLog: 0
   opponentBeliefPool: {fileID: 0}
+  modelConfig: {fileID: 11400000, guid: 44123f73aeced2d4691df9dd0deb9ced, type: 2}
 --- !u!1 &2099592991
 GameObject:
   m_ObjectHideFlags: 0

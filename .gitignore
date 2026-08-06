@@ -60,3 +60,10 @@ sysinfo.txt
 .DS_Store*
 Thumbs.db
 Desktop.ini
+
+# ArkCard AI training outputs and local Python environments
+/Artifacts/AI/
+/Tools/AITraining/.venv/
+/Tools/AITraining/.pytest_cache/
+/Tools/AITraining/**/__pycache__/
+/Tools/AITraining/*.egg-info/

@@ -128,4 +128,38 @@ public class AIPlannerMigrationTests
         Assert.IsNotNull(result.SelectedAction, "Sole action must be returned as selection.");
         Assert.AreEqual(SimulatedActionType.EndTurn, result.SelectedAction.Type, "A sole EndTurn action must bypass MCTS.");
     }
+
+    [Test]
+    public void MultiTargetEffect_EnumeratesEveryLegalCombination()
+    {
+        BattleStateSnapshot state = SimulationTestHelpers.CreateBaseState();
+        CardStateSnapshot spell = SimulationTestHelpers.CreateSpell(30, 0,
+            new CardEffectData { effectType = EffectType.DealDamageToEnemy, effectValues = new[] { 1, 2 } });
+        state.GetPlayer(0).Hand.Add(spell);
+        state.GetPlayer(1).Field.Add(SimulationTestHelpers.CreateCard(41, 1, CardState.Field, 1, 1, PassiveType.None, false));
+        state.GetPlayer(1).Field.Add(SimulationTestHelpers.CreateCard(42, 1, CardState.Field, 1, 1, PassiveType.None, false));
+
+        List<SimulatedAction> plays = new BattleStateSimulator().GenerateLegalActions(state)
+            .FindAll(action => action.Type == SimulatedActionType.PlayHandCard && action.SourceCardId == spell.RuntimeId);
+
+        Assert.AreEqual(3, plays.Count, "Choosing two of two minions plus the enemy player must produce three combinations.");
+        Assert.IsTrue(plays.TrueForAll(action => action.Targets.Count == 2));
+    }
+
+    [Test]
+    public void LegalActions_UseCanonicalOrderWithoutHeuristicScores()
+    {
+        BattleStateSnapshot state = SimulationTestHelpers.CreateBaseState();
+        state.GetPlayer(0).Field.Add(SimulationTestHelpers.CreateCard(11, 0, CardState.Field, 1, 1, PassiveType.None, true));
+        state.GetPlayer(0).Field.Add(SimulationTestHelpers.CreateCard(10, 0, CardState.Field, 9, 9, PassiveType.None, true));
+
+        List<SimulatedAction> actions = new BattleStateSimulator().GenerateLegalActions(state);
+
+        Assert.IsTrue(actions.TrueForAll(action => action.PriorHeuristic == 0), "Legal action generation must be policy-free.");
+        for (int index = 1; index < actions.Count; index++)
+        {
+            Assert.LessOrEqual((int)actions[index - 1].Type, (int)actions[index].Type);
+        }
+        Assert.AreEqual(SimulatedActionType.EndTurn, actions[actions.Count - 1].Type);
+    }
 }

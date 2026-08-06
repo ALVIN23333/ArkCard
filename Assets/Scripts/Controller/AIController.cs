@@ -19,13 +19,21 @@ public class AIController : PlayerController
     private bool enableAIDebugLog;
     [SerializeField]
     private CardListSO opponentBeliefPool;
+    [SerializeField]
+    private AIModelConfig modelConfig;
 
     private float nextActionTime;
-    private MCTSPlanner planner;
+    private IAIPlanner planner;
 
     private void OnEnable()
     {
         IsAIControlled = true;
+    }
+
+    private void OnDisable()
+    {
+        IsAIControlled = false;
+        DisposePlanner();
     }
 
     private void Update()
@@ -86,11 +94,11 @@ public class AIController : PlayerController
         nextActionTime = Time.time + actionInterval;
     }
 
-    private MCTSPlanner GetPlanner()
+    private IAIPlanner GetPlanner()
     {
         if (planner == null)
         {
-            planner = new MCTSPlanner(new MCTSSettings
+            planner = AIPlannerFactory.Create(modelConfig, new MCTSSettings
             {
                 Iterations = searchIterations,
                 TimeBudgetMs = searchTimeBudgetMs,
@@ -101,6 +109,15 @@ public class AIController : PlayerController
             });
         }
         return planner;
+    }
+
+    private void DisposePlanner()
+    {
+        if (planner is System.IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+        planner = null;
     }
 
     private bool ExecuteAction(SimulatedAction action)
