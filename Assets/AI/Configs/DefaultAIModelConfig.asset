@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2da4b9dcb7bf7ec40b7390ac3a4cb8b9, type: 3}
   m_Name: DefaultAIModelConfig
   m_EditorClassIdentifier: 
-  policyModel: {fileID: 0}
-  valueModel: {fileID: 0}
+  policyModel: {fileID: 5022602860645237092, guid: 46b03a5c26f2fd94093e9a53ce0d949c, type: 3}
+  valueModel: {fileID: 5022602860645237092, guid: c7d6306c95367c54096afde77267c3f9, type: 3}
   featureSchemaVersion: 1
-  modelVersion: untrained
-  modelChecksum: 
+  modelVersion: teacher-v1-001
+  modelChecksum: 9b5dd70139fc16c48245dd1748591d4091ee6ea251864300b88116e045fe85c4
   searchIterations: 192
-  timeBudgetMs: 50
+  timeBudgetMs: 45
   explorationConstant: 1.5
   determinizationCount: 4
   maxRootTurns: 2

@@ -7,21 +7,27 @@ using UnityEngine;
 
 public static class ModelPromotionUtility
 {
-    public const string PolicyPath = "Assets/AI/Models/policy.onnx";
-    public const string ValuePath = "Assets/AI/Models/value.onnx";
-    public const string ManifestPath = "Assets/AI/Models/manifest.json";
+    public const string ModelsDirectory = "Assets/AI/Models";
     public const string ConfigPath = "Assets/AI/Configs/DefaultAIModelConfig.asset";
 
     [MenuItem("Tools/AI Training/Refresh Default Config From Promoted Models")]
     public static void RefreshDefaultConfig()
     {
-        if (!File.Exists(PolicyPath) || !File.Exists(ValuePath) || !File.Exists(ManifestPath))
+        RefreshConfig(ModelsDirectory, ConfigPath);
+    }
+
+    public static AIModelConfig RefreshConfig(string modelsDirectory, string configPath)
+    {
+        string policyPath = CombineAssetPath(modelsDirectory, "policy.onnx");
+        string valuePath = CombineAssetPath(modelsDirectory, "value.onnx");
+        string manifestPath = CombineAssetPath(modelsDirectory, "manifest.json");
+        if (!File.Exists(policyPath) || !File.Exists(valuePath) || !File.Exists(manifestPath))
         {
             throw new FileNotFoundException(
-                $"Promoted model files must exist at {PolicyPath}, {ValuePath}, and {ManifestPath}.");
+                $"Promoted model files must exist at {policyPath}, {valuePath}, and {manifestPath}.");
         }
 
-        PromotedModelManifest manifest = JsonUtility.FromJson<PromotedModelManifest>(File.ReadAllText(ManifestPath));
+        PromotedModelManifest manifest = JsonUtility.FromJson<PromotedModelManifest>(File.ReadAllText(manifestPath));
         if (manifest == null || string.IsNullOrWhiteSpace(manifest.modelVersion))
         {
             throw new InvalidDataException("Promoted model manifest is missing modelVersion.");
@@ -32,27 +38,27 @@ public static class ModelPromotionUtility
                 $"Promoted model schema {manifest.featureSchemaVersion} does not match runtime schema {AIEncodingSchema.Version}.");
         }
 
-        string sourceChecksum = ComputeSourceChecksum(PolicyPath, ValuePath);
+        string sourceChecksum = ComputeSourceChecksum(policyPath, valuePath);
         if (!string.Equals(sourceChecksum, manifest.combinedSha256, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
                 $"Promoted ONNX checksum mismatch. Expected {manifest.combinedSha256}, actual {sourceChecksum}.");
         }
 
-        AssetDatabase.ImportAsset(PolicyPath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
-        AssetDatabase.ImportAsset(ValuePath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
-        NNModel policy = AssetDatabase.LoadAssetAtPath<NNModel>(PolicyPath);
-        NNModel value = AssetDatabase.LoadAssetAtPath<NNModel>(ValuePath);
+        AssetDatabase.ImportAsset(policyPath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+        AssetDatabase.ImportAsset(valuePath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+        NNModel policy = AssetDatabase.LoadAssetAtPath<NNModel>(policyPath);
+        NNModel value = AssetDatabase.LoadAssetAtPath<NNModel>(valuePath);
         if (policy == null || value == null)
         {
             throw new InvalidOperationException("Barracuda did not import the promoted ONNX files as NNModel assets.");
         }
 
-        AIModelConfig config = AssetDatabase.LoadAssetAtPath<AIModelConfig>(ConfigPath);
+        AIModelConfig config = AssetDatabase.LoadAssetAtPath<AIModelConfig>(configPath);
         if (config == null)
         {
             config = ScriptableObject.CreateInstance<AIModelConfig>();
-            AssetDatabase.CreateAsset(config, ConfigPath);
+            AssetDatabase.CreateAsset(config, configPath);
         }
         config.policyModel = policy;
         config.valueModel = value;
@@ -62,7 +68,13 @@ public static class ModelPromotionUtility
         EditorUtility.SetDirty(config);
         AssetDatabase.SaveAssetIfDirty(config);
         AssetDatabase.Refresh();
-        Debug.Log($"[AI ML] Default model config refreshed: version={config.modelVersion}, runtimeChecksum={config.modelChecksum}");
+        Debug.Log($"[AI ML] Model config refreshed at {configPath}: version={config.modelVersion}, runtimeChecksum={config.modelChecksum}");
+        return config;
+    }
+
+    private static string CombineAssetPath(string directory, string fileName)
+    {
+        return directory.TrimEnd('/') + "/" + fileName;
     }
 
     private static string ComputeSourceChecksum(string policyPath, string valuePath)

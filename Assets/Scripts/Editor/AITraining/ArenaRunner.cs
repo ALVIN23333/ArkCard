@@ -18,15 +18,18 @@ public sealed class ArenaRunOptions
     public int FirstDeckIndex = -1;
     public int SecondDeckIndex = -1;
     public string ModelConfigPath = "Assets/AI/Configs/DefaultAIModelConfig.asset";
+    public string ChampionModelConfigPath = null;
     public string ReportPath = "Artifacts/AI/Reports/arena-report.json";
 }
 
 public sealed class ArenaReport
 {
     public string ModelVersion = string.Empty;
+    public string Opponent = "legacy";
     public int Games;
     public int CandidateWins;
     public int LegacyWins;
+    public int ChampionWins;
     public int Draws;
     public double CandidateScoreRate;
     public double CandidateRawWinRate;
@@ -64,7 +67,11 @@ public static class ArenaRunner
             Seed = ReadIntArgument(arguments, "-aiSeed", 20260806),
             FirstDeckIndex = ReadIntArgument(arguments, "-aiFirstDeck", -1),
             SecondDeckIndex = ReadIntArgument(arguments, "-aiSecondDeck", -1),
-            ModelConfigPath = ReadStringArgument(arguments, "-aiModelConfig", "Assets/AI/Configs/DefaultAIModelConfig.asset"),
+            ModelConfigPath = ReadStringArgument(
+                arguments,
+                "-aiCandidateModelConfig",
+                ReadStringArgument(arguments, "-aiModelConfig", "Assets/AI/Configs/DefaultAIModelConfig.asset")),
+            ChampionModelConfigPath = ReadStringArgument(arguments, "-aiChampionModelConfig", null),
             ReportPath = ReadStringArgument(arguments, "-aiArenaReport", "Artifacts/AI/Reports/arena-report.json"),
         };
         ArenaReport report = Run(options);
@@ -94,6 +101,19 @@ public static class ArenaRunner
         {
             throw new InvalidOperationException(modelError);
         }
+        AIModelConfig championConfig = null;
+        if (!string.IsNullOrWhiteSpace(options.ChampionModelConfigPath))
+        {
+            championConfig = AssetDatabase.LoadAssetAtPath<AIModelConfig>(options.ChampionModelConfigPath);
+            if (championConfig == null)
+            {
+                throw new InvalidOperationException($"Champion AI model config is missing at {options.ChampionModelConfigPath}.");
+            }
+            if (!championConfig.Validate(out string championError))
+            {
+                throw new InvalidOperationException(championError);
+            }
+        }
         if (cardDatabase == null || deckDatabase == null || deckDatabase.decks == null || deckDatabase.decks.Count == 0)
         {
             throw new InvalidOperationException("Arena card or deck database is missing.");
@@ -104,17 +124,26 @@ public static class ArenaRunner
         int[] candidateDeck = GetDeck(deckDatabase, firstIndex);
         int[] legacyDeck = GetDeck(deckDatabase, secondIndex);
         List<double> candidateDecisionTimes = new();
-        ArenaReport report = new() { ModelVersion = modelConfig.modelVersion };
+        ArenaReport report = new()
+        {
+            ModelVersion = modelConfig.modelVersion,
+            Opponent = championConfig != null ? championConfig.modelVersion : "legacy",
+        };
 
         int pairCount = options.GameCount / 2;
         for (int pair = 0; pair < pairCount; pair++)
         {
             int seed = unchecked(options.Seed + pair * 104729);
-            CountResult(PlayGame(seed, 0, candidateDeck, legacyDeck, cardDatabase, modelConfig, options.MaxPliesPerGame, candidateDecisionTimes), report);
-            CountResult(PlayGame(seed, 1, legacyDeck, candidateDeck, cardDatabase, modelConfig, options.MaxPliesPerGame, candidateDecisionTimes), report);
+            CountResult(
+                PlayGame(seed, 0, candidateDeck, legacyDeck, cardDatabase, modelConfig, championConfig, options.MaxPliesPerGame, candidateDecisionTimes),
+                report);
+            CountResult(
+                PlayGame(seed, 1, legacyDeck, candidateDeck, cardDatabase, modelConfig, championConfig, options.MaxPliesPerGame, candidateDecisionTimes),
+                report);
         }
 
         report.Games = report.CandidateWins + report.LegacyWins + report.Draws;
+        report.ChampionWins = championConfig != null ? report.LegacyWins : 0;
         report.CandidateRawWinRate = report.Games > 0 ? (double)report.CandidateWins / report.Games : 0;
         report.CandidateScoreRate = report.Games > 0 ? (report.CandidateWins + 0.5 * report.Draws) / report.Games : 0;
         report.DecisionP95Milliseconds = Percentile(candidateDecisionTimes, 0.95);
@@ -133,6 +162,7 @@ public static class ArenaRunner
         int[] secondDeck,
         CardListSO cardDatabase,
         AIModelConfig modelConfig,
+        AIModelConfig championConfig,
         int maxPlies,
         List<double> candidateDecisionTimes)
     {
@@ -142,16 +172,21 @@ public static class ArenaRunner
             new BarracudaPolicyValueProvider(modelConfig),
             modelConfig.CreateSearchSettings(),
             seed);
-        IAIPlanner legacy = new MCTSPlanner(new MCTSSettings
-        {
-            Iterations = 300,
-            TimeBudgetMs = 35,
-            RolloutActionLimit = 4,
-            ExplorationConstant = 1.4,
-            ExpandTopCandidatesBias = 3,
-            MaxRootTurns = 2,
-            MaxActionsPerNode = 10,
-        }, seed);
+        IAIPlanner legacy = championConfig != null
+            ? new NeuralMCTSPlanner(
+                new BarracudaPolicyValueProvider(championConfig),
+                championConfig.CreateSearchSettings(),
+                seed)
+            : new MCTSPlanner(new MCTSSettings
+            {
+                Iterations = 300,
+                TimeBudgetMs = 35,
+                RolloutActionLimit = 4,
+                ExplorationConstant = 1.4,
+                ExpandTopCandidatesBias = 3,
+                MaxRootTurns = 2,
+                MaxActionsPerNode = 10,
+            }, seed);
 
         try
         {
@@ -216,12 +251,19 @@ public static class ArenaRunner
         string fullPath = TrainingSimulation.ResolveProjectPath(reportPath);
         string directory = Path.GetDirectoryName(fullPath);
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+        File.WriteAllText(fullPath, BuildReportJson(report), new UTF8Encoding(false));
+    }
+
+    public static string BuildReportJson(ArenaReport report)
+    {
         StringBuilder json = new();
         json.AppendLine("{");
         json.Append("  \"modelVersion\": \"").Append(EscapeJson(report.ModelVersion)).AppendLine("\",");
+        json.Append("  \"opponent\": \"").Append(EscapeJson(report.Opponent)).AppendLine("\",");
         json.Append("  \"games\": ").Append(report.Games).AppendLine(",");
         json.Append("  \"candidateWins\": ").Append(report.CandidateWins).AppendLine(",");
         json.Append("  \"legacyWins\": ").Append(report.LegacyWins).AppendLine(",");
+        json.Append("  \"championWins\": ").Append(report.ChampionWins).AppendLine(",");
         json.Append("  \"draws\": ").Append(report.Draws).AppendLine(",");
         json.Append("  \"candidateScoreRate\": ").Append(report.CandidateScoreRate.ToString("R", CultureInfo.InvariantCulture)).AppendLine(",");
         json.Append("  \"candidateRawWinRate\": ").Append(report.CandidateRawWinRate.ToString("R", CultureInfo.InvariantCulture)).AppendLine(",");
@@ -231,7 +273,7 @@ public static class ArenaRunner
         json.Append("  \"passedMinimumGames\": ").Append(report.PassedMinimumGames.ToString().ToLowerInvariant()).AppendLine(",");
         json.Append("  \"promotionPassed\": ").Append(report.PromotionPassed.ToString().ToLowerInvariant()).AppendLine();
         json.AppendLine("}");
-        File.WriteAllText(fullPath, json.ToString(), new UTF8Encoding(false));
+        return json.ToString();
     }
 
     private static int[] GetDeck(DeckListSO database, int index)

@@ -194,3 +194,4 @@ def _read_exact(stream: BinaryIO, count: int) -> bytes:
 
 def _unpack(stream: BinaryIO, fmt: str) -> tuple:
     return struct.unpack(fmt, _read_exact(stream, struct.calcsize(fmt)))
+
