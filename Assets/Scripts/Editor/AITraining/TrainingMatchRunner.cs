@@ -23,6 +23,7 @@ public sealed class TrainingRunOptions
     public int TeacherRolloutActionLimit = 4;
     public int FirstDeckIndex = -1;
     public int SecondDeckIndex = -1;
+    public string DeckMatrix = null;
     public string OutputDirectory = "Artifacts/AI/Datasets";
     public string Prefix = "legacy-teacher";
 }
@@ -35,6 +36,8 @@ public sealed class TrainingRunSummary
     public int FirstPlayerWins;
     public int SecondPlayerWins;
     public int Draws;
+    public string DeckMatrix = null;
+    public int[] DeckIndices = null;
     public long ElapsedMilliseconds;
     public List<string> Shards = new();
 }
@@ -76,6 +79,7 @@ public static class TrainingMatchRunner
             Seed = ReadIntArgument(arguments, "-aiSeed", 20260806),
             FirstDeckIndex = ReadIntArgument(arguments, "-aiFirstDeck", -1),
             SecondDeckIndex = ReadIntArgument(arguments, "-aiSecondDeck", -1),
+            DeckMatrix = ReadStringArgument(arguments, "-aiDeckMatrix", null),
             OutputDirectory = ReadStringArgument(arguments, "-aiOutput", "Artifacts/AI/Datasets"),
             Prefix = ReadStringArgument(arguments, "-aiPrefix", "legacy-teacher"),
         };
@@ -96,6 +100,7 @@ public static class TrainingMatchRunner
             Seed = ReadIntArgument(arguments, "-aiSeed", 20260806),
             FirstDeckIndex = ReadIntArgument(arguments, "-aiFirstDeck", -1),
             SecondDeckIndex = ReadIntArgument(arguments, "-aiSecondDeck", -1),
+            DeckMatrix = ReadStringArgument(arguments, "-aiDeckMatrix", null),
             OutputDirectory = ReadStringArgument(arguments, "-aiOutput", "Artifacts/AI/Datasets/self-play"),
             Prefix = ReadStringArgument(arguments, "-aiPrefix", "neural-self-play"),
         };
@@ -120,10 +125,13 @@ public static class TrainingMatchRunner
             ref deckDatabase,
             out int[] configuredFirstDeck,
             out int[] configuredSecondDeck);
+        int[] deckMatrix = ParseDeckMatrix(options.DeckMatrix, deckDatabase.decks != null ? deckDatabase.decks.Count : 0);
         return RunMatches(
             options,
             configuredFirstDeck,
             configuredSecondDeck,
+            deckMatrix,
+            deckDatabase,
             (gameId, gameSeed, firstDeck, secondDeck) =>
                 PlayTeacherMatch(gameId, gameSeed, firstDeck, secondDeck, cardDatabase, options));
     }
@@ -149,10 +157,13 @@ public static class TrainingMatchRunner
             ref deckDatabase,
             out int[] configuredFirstDeck,
             out int[] configuredSecondDeck);
+        int[] deckMatrix = ParseDeckMatrix(options.DeckMatrix, deckDatabase.decks != null ? deckDatabase.decks.Count : 0);
         return RunMatches(
             options,
             configuredFirstDeck,
             configuredSecondDeck,
+            deckMatrix,
+            deckDatabase,
             (gameId, gameSeed, firstDeck, secondDeck) =>
                 PlayNeuralSelfPlayMatch(gameId, gameSeed, firstDeck, secondDeck, cardDatabase, modelConfig, options));
     }
@@ -161,6 +172,8 @@ public static class TrainingMatchRunner
         TrainingRunOptions options,
         int[] configuredFirstDeck,
         int[] configuredSecondDeck,
+        int[] deckMatrix,
+        DeckListSO deckDatabase,
         Func<int, int, int[], int[], TrainingGameResult> playMatch)
     {
         string outputDirectory = TrainingSimulation.ResolveProjectPath(options.OutputDirectory);
@@ -174,9 +187,20 @@ public static class TrainingMatchRunner
                  gameId++)
             {
                 int gameSeed = unchecked(options.Seed + gameId * 104729);
+                int[] firstDeck;
+                int[] secondDeck;
                 bool swapDecks = (gameId & 1) != 0;
-                int[] firstDeck = swapDecks ? configuredSecondDeck : configuredFirstDeck;
-                int[] secondDeck = swapDecks ? configuredFirstDeck : configuredSecondDeck;
+                if (deckMatrix != null)
+                {
+                    (int firstIndex, int secondIndex) = ComputeDeckPair(deckMatrix, gameId);
+                    firstDeck = GetMatrixDeck(deckDatabase, swapDecks ? secondIndex : firstIndex);
+                    secondDeck = GetMatrixDeck(deckDatabase, swapDecks ? firstIndex : secondIndex);
+                }
+                else
+                {
+                    firstDeck = swapDecks ? configuredSecondDeck : configuredFirstDeck;
+                    secondDeck = swapDecks ? configuredFirstDeck : configuredSecondDeck;
+                }
                 TrainingGameResult game = playMatch(gameId, gameSeed, firstDeck, secondDeck);
                 foreach (TrainingSample sample in game.Samples)
                 {
@@ -197,6 +221,8 @@ public static class TrainingMatchRunner
 
         summary.Samples = shardWriter.TotalSamplesWritten;
         summary.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
+        summary.DeckMatrix = deckMatrix != null ? options.DeckMatrix : null;
+        summary.DeckIndices = deckMatrix;
         summary.Shards.AddRange(shardWriter.CompletedShards);
         WriteSummary(outputDirectory, options.Prefix, summary);
         if (summary.Samples < options.TargetDecisionSamples)
@@ -400,6 +426,67 @@ public static class TrainingMatchRunner
         return Math.Max(0, Math.Min(count - 1, fallback));
     }
 
+    public static int[] ParseDeckMatrix(string value, int deckCount)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        int[] indices;
+        if (value.Trim().Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            indices = new int[Math.Max(0, deckCount)];
+            for (int index = 0; index < deckCount; index++)
+            {
+                indices[index] = index;
+            }
+        }
+        else
+        {
+            string[] parts = value.Split(',');
+            indices = new int[parts.Length];
+            for (int index = 0; index < parts.Length; index++)
+            {
+                string part = parts[index].Trim();
+                if (!int.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ||
+                    parsed < 0 || parsed >= deckCount)
+                {
+                    throw new ArgumentException(
+                        $"Invalid deck matrix index '{part}' for deck count {deckCount}.");
+                }
+                indices[index] = parsed;
+            }
+        }
+
+        if (indices.Length == 0)
+        {
+            throw new ArgumentException("Deck matrix must contain at least one deck index.");
+        }
+        return indices;
+    }
+
+    public static (int First, int Second) ComputeDeckPair(int[] matrix, int gameId)
+    {
+        if (matrix == null || matrix.Length == 0)
+        {
+            throw new ArgumentException("Deck matrix is empty.");
+        }
+        int count = matrix.Length;
+        int pair = gameId % (count * count);
+        return (matrix[pair / count], matrix[pair % count]);
+    }
+
+    private static int[] GetMatrixDeck(DeckListSO deckDatabase, int index)
+    {
+        DeckData deck = deckDatabase != null ? deckDatabase.GetDeck(index) : null;
+        if (deck == null || deck.deck == null)
+        {
+            throw new InvalidOperationException($"Deck matrix resolved to a missing deck at index {index}.");
+        }
+        return deck.deck.ToArray();
+    }
+
     private static void ValidateDeck(int[] deck, CardListSO database, int index)
     {
         if (deck == null || deck.Length == 0)
@@ -453,9 +540,22 @@ public static class TrainingMatchRunner
         json.Append("  \"firstPlayerWins\": ").Append(summary.FirstPlayerWins).AppendLine(",");
         json.Append("  \"secondPlayerWins\": ").Append(summary.SecondPlayerWins).AppendLine(",");
         json.Append("  \"draws\": ").Append(summary.Draws).AppendLine(",");
+        if (summary.DeckMatrix != null)
+        {
+            json.Append("  \"deckMatrix\": \"").Append(EscapeJson(summary.DeckMatrix)).AppendLine("\",");
+        }
+        if (summary.DeckIndices != null)
+        {
+            json.Append("  \"deckIndices\": [").Append(string.Join(", ", summary.DeckIndices)).AppendLine("],");
+        }
         json.Append("  \"elapsedMilliseconds\": ").Append(summary.ElapsedMilliseconds).AppendLine();
         json.AppendLine("}");
         File.WriteAllText(Path.Combine(outputDirectory, prefix + "-summary.json"), json.ToString(), new UTF8Encoding(false));
+    }
+
+    private static string EscapeJson(string value)
+    {
+        return (value ?? string.Empty).Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 
     private sealed class TrainingGameResult

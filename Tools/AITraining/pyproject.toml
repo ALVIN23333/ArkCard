@@ -26,6 +26,7 @@ arkcard-train = "arkcard_ai.train:main"
 arkcard-export = "arkcard_ai.export_onnx:main"
 arkcard-inspect-dataset = "arkcard_ai.inspect_dataset:main"
 arkcard-check-arena = "arkcard_ai.arena:main"
+arkcard-pipeline = "arkcard_ai.pipeline:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -33,4 +34,3 @@ include = ["arkcard_ai*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

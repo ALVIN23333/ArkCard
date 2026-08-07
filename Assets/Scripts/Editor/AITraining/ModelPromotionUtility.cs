@@ -16,6 +16,33 @@ public static class ModelPromotionUtility
         RefreshConfig(ModelsDirectory, ConfigPath);
     }
 
+    public static void RefreshCandidateConfigFromCommandLine()
+    {
+        string[] arguments = Environment.GetCommandLineArgs();
+        string modelsDirectory = ReadStringArgument(
+            arguments,
+            "-aiCandidateModelsDir",
+            "Assets/AI/Models/Candidate");
+        string configPath = ReadStringArgument(
+            arguments,
+            "-aiCandidateConfigPath",
+            "Assets/AI/Configs/CandidateAIModelConfig.asset");
+        AIModelConfig config = RefreshConfig(modelsDirectory, configPath);
+        Debug.Log($"[AI ML] Candidate config refreshed: version={config.modelVersion}, path={configPath}");
+    }
+
+    public static string ReadStringArgument(string[] arguments, string name, string fallback)
+    {
+        for (int index = 0; index + 1 < arguments.Length; index++)
+        {
+            if (string.Equals(arguments[index], name, StringComparison.OrdinalIgnoreCase))
+            {
+                return arguments[index + 1];
+            }
+        }
+        return fallback;
+    }
+
     public static AIModelConfig RefreshConfig(string modelsDirectory, string configPath)
     {
         string policyPath = CombineAssetPath(modelsDirectory, "policy.onnx");
