@@ -57,6 +57,7 @@ def main() -> None:
         dynamic_axes={POLICY_INPUT_NAME: {0: "candidate_count"}, POLICY_OUTPUT_NAME: {0: "candidate_count"}},
         opset_version=9,
         do_constant_folding=True,
+        dynamo=False,
     )
     torch.onnx.export(
         value,
@@ -67,6 +68,7 @@ def main() -> None:
         dynamic_axes={VALUE_INPUT_NAME: {0: "batch"}, VALUE_OUTPUT_NAME: {0: "batch"}},
         opset_version=9,
         do_constant_folding=True,
+        dynamo=False,
     )
 
     parity = None if args.skip_parity else _check_parity(policy, value, policy_path, value_path, policy_input, state_input)

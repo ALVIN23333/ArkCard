@@ -80,3 +80,4 @@ class ValueExport(nn.Module):
 
     def forward(self, state_input: Tensor) -> Tensor:
         return self.value_head(self.state_encoder(state_input))
+

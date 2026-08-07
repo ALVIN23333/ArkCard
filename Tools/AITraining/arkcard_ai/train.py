@@ -186,3 +186,4 @@ def _validate_checkpoint_schema(checkpoint: dict) -> None:
 
 if __name__ == "__main__":
     main()
+

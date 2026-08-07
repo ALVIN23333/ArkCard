@@ -67,3 +67,11 @@ Desktop.ini
 /Tools/AITraining/.pytest_cache/
 /Tools/AITraining/**/__pycache__/
 /Tools/AITraining/*.egg-info/
+
+# AI model training data and trained model artifacts (not uploaded to GitHub)
+/Assets/AI/Models/
+/Tools/exports/
+/Tools/runs/
+/Tools/staging/
+/Tools/teacher-v1/
+/Tools/teacher-v1-inspection.json
