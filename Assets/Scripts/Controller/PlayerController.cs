@@ -297,6 +297,7 @@ public class PlayerController : MonoBehaviour
         card.transform.localScale = Vector3.one;
         if (card.cardDisplay != null)
         {
+            card.cardDisplay.ShowBack(false);
             card.cardDisplay.UpdateCard();
         }
         AnimeManager.GroupLocalPosition(sequence, card.transform, "Graveyard", Vector3.zero, 0.5f);

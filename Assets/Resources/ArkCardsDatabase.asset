@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 535212b859d083244a71fe7d50facd90, type: 3}
   m_Name: ArkCardsDatabase
   m_EditorClassIdentifier: 
+  effectSchemaVersion: 3
   cards:
   - index: 1001
     cardType: 1
@@ -24,8 +25,12 @@ MonoBehaviour:
     effects:
     - triggerType: 4
       conditionTypes: 00000000
-      effectType: 8
-      effectValues: 01000000
+      effectType: 120
+      targetSide: 0
+      targetMode: 1
+      characterScope: 0
+      includeSource: 1
+      effectValues: 0000000001000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 01000000
@@ -44,12 +49,16 @@ MonoBehaviour:
     attack: 3
     health: 3
     image: {fileID: 21300000, guid: 6101c4b445c463240872942fae503d4e, type: 3}
-    effectDescription: "<b>\u6218\u543C</b>\uFF1A\u5BF9\u6240\u6709\u5176\u4ED6\u89D2\u8272\u9020\u62104\u70B9\u4F24\u5BB3"
+    effectDescription: "<b>\u6218\u543C</b>\uFF1A\u5BF9\u6240\u6709\u5176\u4ED6\u968F\u4ECE\u9020\u62104\u70B9\u4F24\u5BB3"
     effects:
     - triggerType: 3
       conditionTypes: 00000000
-      effectType: 6
-      effectValues: 04000000
+      effectType: 110
+      targetSide: 2
+      targetMode: 1
+      characterScope: 0
+      includeSource: 0
+      effectValues: 0400000001000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 
@@ -72,8 +81,12 @@ MonoBehaviour:
     effects:
     - triggerType: 4
       conditionTypes: 00000000
-      effectType: 101
-      effectValues: fefffffffeffffff
+      effectType: 113
+      targetSide: 1
+      targetMode: 2
+      characterScope: 0
+      includeSource: 0
+      effectValues: fefffffffeffffff01000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 0300000007000000
@@ -89,15 +102,19 @@ MonoBehaviour:
     cardType: 1
     name: 42
     cost: 5
-    attack: 3
+    attack: 2
     health: 2
     image: {fileID: 21300000, guid: 8e0d39c948a673f42847e25fe1673b24, type: 3}
     effectDescription: "<b>\u542F\u52A8</b>\uFF1A\u5BF9\u4E00\u4E2A\u654C\u4EBA\u9020\u62106\u70B9\u4F24\u5BB3"
     effects:
     - triggerType: 6
       conditionTypes: 00000000
-      effectType: 100
-      effectValues: 06000000
+      effectType: 110
+      targetSide: 1
+      targetMode: 2
+      characterScope: 2
+      includeSource: 0
+      effectValues: 0600000001000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 
@@ -114,14 +131,18 @@ MonoBehaviour:
     name: "\u661F\u718A"
     cost: 5
     attack: 4
-    health: 6
+    health: 5
     image: {fileID: 21300000, guid: 5015287d22febd949ba88b2185b91cc0, type: 3}
     effectDescription: "<b>\u5632\u8BBD\uFF0C\u9B54\u514D</b>\\n\u53D7\u4F24\u65F6+1/+1"
     effects:
     - triggerType: 5
       conditionTypes: 00000000
-      effectType: 2
-      effectValues: 0100000001000000
+      effectType: 113
+      targetSide: 0
+      targetMode: 0
+      characterScope: 0
+      includeSource: 1
+      effectValues: 010000000100000000000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 030000000a000000
@@ -140,11 +161,25 @@ MonoBehaviour:
     attack: 1
     health: 1
     image: {fileID: 21300000, guid: 3cdebf3f6f5f43046a8317a4d42a07d0, type: 3}
-    effectDescription: "<b>\u6218\u543C</b>\uFF1A\u9009\u62E9\u4E00\u4E2A\u968F\u4ECE\u56DE\u5230\u62E5\u6709\u8005\u7684\u624B\u724C"
+    effectDescription: "<b>\u6218\u543C</b>\uFF1A\u9009\u62E9\u4E00\u4E2A\u53CB\u65B9\u968F\u4ECE\u56DE\u624B\u4EE5\u4F7F\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE\u56DE\u624B"
     effects:
     - triggerType: 3
-      conditionTypes: 00000000
-      effectType: 106
+      conditionTypes: 04000000
+      effectType: 114
+      targetSide: 0
+      targetMode: 2
+      characterScope: 0
+      includeSource: 0
+      effectValues: 01000000
+      thenEffects: []
+      elseEffects: []
+    - triggerType: 3
+      conditionTypes: 
+      effectType: 114
+      targetSide: 1
+      targetMode: 2
+      characterScope: 0
+      includeSource: 0
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
@@ -168,8 +203,12 @@ MonoBehaviour:
     effects:
     - triggerType: 2
       conditionTypes: 00000000
-      effectType: 3
-      effectValues: 0100000001000000
+      effectType: 113
+      targetSide: 0
+      targetMode: 1
+      characterScope: 0
+      includeSource: 1
+      effectValues: 010000000100000000000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 
@@ -192,8 +231,12 @@ MonoBehaviour:
     effects:
     - triggerType: 3
       conditionTypes: 00000000
-      effectType: 7
-      effectValues: 03000000
+      effectType: 110
+      targetSide: 1
+      targetMode: 1
+      characterScope: 2
+      includeSource: 0
+      effectValues: 0300000001000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 08000000
@@ -216,7 +259,11 @@ MonoBehaviour:
     effects:
     - triggerType: 3
       conditionTypes: 00000000
-      effectType: 102
+      effectType: 121
+      targetSide: 1
+      targetMode: 2
+      characterScope: 0
+      includeSource: 1
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
@@ -240,7 +287,11 @@ MonoBehaviour:
     effects:
     - triggerType: 3
       conditionTypes: 00000000
-      effectType: 100
+      effectType: 110
+      targetSide: 1
+      targetMode: 2
+      characterScope: 2
+      includeSource: 0
       effectValues: 0100000002000000
       thenEffects: []
       elseEffects: []
@@ -264,7 +315,11 @@ MonoBehaviour:
     effects:
     - triggerType: 0
       conditionTypes: 00000000
-      effectType: 1
+      effectType: 119
+      targetSide: 0
+      targetMode: 1
+      characterScope: 0
+      includeSource: 1
       effectValues: 02000000
       thenEffects: []
       elseEffects: []
@@ -288,14 +343,22 @@ MonoBehaviour:
     effects:
     - triggerType: 0
       conditionTypes: 09000000
-      effectType: 108
-      effectValues: 0100000001000000
+      effectType: 114
+      targetSide: 1
+      targetMode: 2
+      characterScope: 0
+      includeSource: 1
+      effectValues: 01000000
       thenEffects: []
       elseEffects: []
     - triggerType: 0
       conditionTypes: 
-      effectType: 3
-      effectValues: 0100000001000000
+      effectType: 113
+      targetSide: 0
+      targetMode: 1
+      characterScope: 0
+      includeSource: 1
+      effectValues: 010000000100000000000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 
@@ -318,7 +381,11 @@ MonoBehaviour:
     effects:
     - triggerType: 0
       conditionTypes: 09000000
-      effectType: 103
+      effectType: 112
+      targetSide: 1
+      targetMode: 2
+      characterScope: 0
+      includeSource: 1
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
@@ -342,7 +409,11 @@ MonoBehaviour:
     effects:
     - triggerType: 0
       conditionTypes: 05000000
-      effectType: 109
+      effectType: 116
+      targetSide: 0
+      targetMode: 2
+      characterScope: 0
+      includeSource: 1
       effectValues: 01000000
       thenEffects: []
       elseEffects: []
@@ -366,8 +437,12 @@ MonoBehaviour:
     effects:
     - triggerType: 1
       conditionTypes: 00000000
-      effectType: 2
-      effectValues: 0100000001000000
+      effectType: 113
+      targetSide: 0
+      targetMode: 0
+      characterScope: 0
+      includeSource: 1
+      effectValues: 010000000100000000000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 05000000
@@ -390,19 +465,31 @@ MonoBehaviour:
     effects:
     - triggerType: 0
       conditionTypes: 
-      effectType: 103
-      effectValues: 0500000001000000
+      effectType: 112
+      targetSide: 1
+      targetMode: 2
+      characterScope: 0
+      includeSource: 1
+      effectValues: 01000000
       thenEffects: []
       elseEffects: []
     - triggerType: 0
       conditionTypes: 
-      effectType: 7
-      effectValues: 04000000
+      effectType: 110
+      targetSide: 1
+      targetMode: 1
+      characterScope: 2
+      includeSource: 1
+      effectValues: 0400000001000000
       thenEffects: []
       elseEffects: []
     - triggerType: 0
       conditionTypes: 
-      effectType: 1
+      effectType: 119
+      targetSide: 0
+      targetMode: 1
+      characterScope: 0
+      includeSource: 1
       effectValues: 02000000
       thenEffects: []
       elseEffects: []
@@ -426,14 +513,22 @@ MonoBehaviour:
     effects:
     - triggerType: 0
       conditionTypes: 08000000
-      effectType: 107
-      effectValues: 0000000001000000
+      effectType: 114
+      targetSide: 0
+      targetMode: 2
+      characterScope: 0
+      includeSource: 1
+      effectValues: 01000000
       thenEffects: []
       elseEffects: []
     - triggerType: 0
       conditionTypes: 
-      effectType: 9
-      effectValues: 02000000
+      effectType: 120
+      targetSide: 0
+      targetMode: 1
+      characterScope: 0
+      includeSource: 1
+      effectValues: 0200000000000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 
@@ -456,8 +551,12 @@ MonoBehaviour:
     effects:
     - triggerType: 3
       conditionTypes: 
-      effectType: 5
-      effectValues: 02000000
+      effectType: 111
+      targetSide: 0
+      targetMode: 1
+      characterScope: 2
+      includeSource: 1
+      effectValues: 0200000001000000
       thenEffects: []
       elseEffects: []
     passiveTypes: 04000000
@@ -485,5 +584,117 @@ MonoBehaviour:
     aiBasePriority: 6
     aiComboReserveThreshold: 0
     aiLethalBonus: 5
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1107
+    cardType: 2
+    name: "\u5F00\u51B2"
+    cost: 3
+    attack: 0
+    health: 0
+    image: {fileID: 21300000, guid: cc07734da69efac44b224bf98bf3ce48, type: 3}
+    effectDescription: "\u53EC\u55242\u4E2A\u5FB7\u514B\u8428\u65AF"
+    effects:
+    - triggerType: 0
+      conditionTypes: 07000000
+      effectType: 117
+      targetSide: 0
+      targetMode: 1
+      characterScope: 0
+      includeSource: 1
+      effectValues: e903000002000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 
+    aiRole: 1
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 5
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1108
+    cardType: 2
+    name: "\u4E09\u62D4\u5200"
+    cost: 3
+    attack: 0
+    health: 0
+    image: {fileID: 21300000, guid: 7360d1b90bf24ea4bb4ec41671296417, type: 3}
+    effectDescription: "\u654C\u65B9\u73A9\u5BB6\u5F033\u5F20\u724C"
+    effects:
+    - triggerType: 0
+      conditionTypes: 
+      effectType: 115
+      targetSide: 1
+      targetMode: 3
+      characterScope: 0
+      includeSource: 1
+      effectValues: 03000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 
+    aiRole: 0
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 0
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1014
+    cardType: 1
+    name: "\u86C7\u5C60\u7BB1"
+    cost: 4
+    attack: 1
+    health: 4
+    image: {fileID: 21300000, guid: 4164de16f9bd314458992073fb5bc2f1, type: 3}
+    effectDescription: "<b>\u5632\u8BBD\uFF0C\u7A81\u88AD</b>\\n\u53D7\u4F24\u65F6\u53EC\u5524\u4E00\u4E2A\u968F\u673A4\u8D39\u968F\u4ECE"
+    effects:
+    - triggerType: 5
+      conditionTypes: 
+      effectType: 118
+      targetSide: 0
+      targetMode: 3
+      characterScope: 0
+      includeSource: 1
+      effectValues: 0400000001000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 0300000002000000
+    aiRole: 0
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 0
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
+    attackAudio: {fileID: 0}
+    enterAudio: {fileID: 0}
+  - index: 1109
+    cardType: 2
+    name: "\u62FF\u6765\u5427\u4F60"
+    cost: 5
+    attack: 0
+    health: 0
+    image: {fileID: 21300000, guid: 005ffa20552dfc146b4470c4dbba564b, type: 3}
+    effectDescription: "\u590D\u6D3B\u4E00\u4E2A\u654C\u65B9\u968F\u4ECE"
+    effects:
+    - triggerType: 0
+      conditionTypes: 06000000
+      effectType: 116
+      targetSide: 1
+      targetMode: 2
+      characterScope: 0
+      includeSource: 1
+      effectValues: 01000000
+      thenEffects: []
+      elseEffects: []
+    passiveTypes: 
+    aiRole: 5
+    aiPlayStyle: 0
+    aiTargetPriority: 0
+    aiBasePriority: 0
+    aiComboReserveThreshold: 0
+    aiLethalBonus: 0
     attackAudio: {fileID: 0}
     enterAudio: {fileID: 0}

@@ -249,7 +249,7 @@ public static class HeuristicEvaluator
     {
         foreach (CardEffectData effect in effects)
         {
-            if (effect != null && BattleStateSimulator.IsTargetedEffect(effect.effectType)) return effect;
+            if (effect != null && BattleStateSimulator.IsTargetedEffect(effect)) return effect;
         }
         return null;
     }
@@ -303,7 +303,8 @@ public static class HeuristicEvaluator
         }
         foreach (CardEffectData effect in effects)
         {
-            if (effect != null && effect.effectType == EffectType.Draw)
+            if (effect != null && (effect.effectType == EffectType.Draw
+                || (effect.effectType == EffectType.DrawCards && effect.targetSide != EffectTargetSide.Enemy)))
             {
                 return true;
             }

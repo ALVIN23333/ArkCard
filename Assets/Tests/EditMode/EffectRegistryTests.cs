@@ -61,6 +61,13 @@ public class EffectRegistryTests
             EffectType.AllyBackHand,
             EffectType.EnemyBackHand,
             EffectType.ReviveAlly,
+            EffectType.Damage,
+            EffectType.Heal,
+            EffectType.Destroy,
+            EffectType.Buff,
+            EffectType.BackHand,
+            EffectType.Revive,
+            EffectType.Silence,
         };
 
         foreach (EffectType effectType in Enum.GetValues(typeof(EffectType)))

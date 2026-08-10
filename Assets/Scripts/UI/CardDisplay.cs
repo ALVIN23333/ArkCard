@@ -128,6 +128,7 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
             return;
         }
 
+        BattleManager battleManager = GM.Ins != null ? GM.Ins.BM : null;
         if (showChoosingIcon)
         {
             isActiveIcon.SetActive(false);
@@ -135,8 +136,6 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
         }
 
         bool showActiveIcon = false;
-        BattleManager battleManager = GM.Ins != null ? GM.Ins.BM : null;
-
         if (front.activeSelf && controller.player != null && battleManager != null)
         {
             if (controller.state == CardState.Field)
@@ -147,14 +146,7 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
             }
             else if (controller.state == CardState.Hand)
             {
-                if (controller.cardData.cardType == CardType.Minion)
-                {
-                    showActiveIcon = battleManager.CanUseMinion(controller, controller.player.fieldController);
-                }
-                else if (controller.cardData.cardType == CardType.SPELL)
-                {
-                    showActiveIcon = battleManager.CanUseSpell(controller);
-                }
+                showActiveIcon = battleManager.CanShowHandCardAction(controller);
             }
         }
 
@@ -199,6 +191,12 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
 
     private Vector3 GetFallbackScaleForCurrentState()
     {
+        BattleManager battleManager = GM.Ins != null ? GM.Ins.BM : null;
+        if (battleManager != null && battleManager.IsCardInPlayQueue(controller))
+        {
+            return Vector3.one * battleManager.GetQueuedCardDisplayScale();
+        }
+
         return controller != null && controller.state == CardState.Hanging
             ? Vector3.one * 1.5f
             : Vector3.one;

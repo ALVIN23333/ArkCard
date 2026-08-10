@@ -7,6 +7,170 @@ using UnityEngine;
 /// </summary>
 public static class EffectTargetingRules
 {
+    public static List<UnityEngine.Object> GetConfiguredCharacters(
+        CardController source,
+        CardEffectData effect,
+        bool applySelectionRestrictions)
+    {
+        List<UnityEngine.Object> targets = new();
+        if (source == null || effect == null || GM.Ins == null || GM.Ins.BM == null)
+        {
+            return targets;
+        }
+
+        foreach (PlayerController player in GM.Ins.BM.players)
+        {
+            if (player == null || !MatchesSide(player == source.player, effect.targetSide))
+            {
+                continue;
+            }
+
+            if (effect.characterScope != EffectCharacterScope.Minions)
+            {
+                targets.Add(player);
+            }
+
+            if (effect.characterScope == EffectCharacterScope.Heroes || player.fieldController == null)
+            {
+                continue;
+            }
+
+            foreach (CardController card in player.fieldController.fieldCards)
+            {
+                if (card == null || (!effect.includeSource && card == source))
+                {
+                    continue;
+                }
+
+                bool enemy = card.player != source.player;
+                if (applySelectionRestrictions
+                    && ((enemy && card.isStealth) || IsMagicImmuneToSource(source, card)))
+                {
+                    continue;
+                }
+
+                targets.Add(card);
+            }
+        }
+
+        return targets;
+    }
+
+    public static List<SimulatedTarget> GetConfiguredCharacters(
+        BattleStateSnapshot state,
+        CardStateSnapshot source,
+        CardEffectData effect,
+        bool applySelectionRestrictions)
+    {
+        List<SimulatedTarget> targets = new();
+        if (state == null || source == null || effect == null)
+        {
+            return targets;
+        }
+
+        bool spellSource = source.Data != null && source.Data.cardType == CardType.SPELL;
+        foreach (PlayerStateSnapshot player in state.Players)
+        {
+            if (player == null || !MatchesSide(player.PlayerIndex == source.OwnerIndex, effect.targetSide))
+            {
+                continue;
+            }
+
+            if (effect.characterScope != EffectCharacterScope.Minions)
+            {
+                targets.Add(SimulatedTarget.Player(player.PlayerIndex));
+            }
+
+            if (effect.characterScope == EffectCharacterScope.Heroes)
+            {
+                continue;
+            }
+
+            foreach (CardStateSnapshot card in player.Field)
+            {
+                if (card == null || (!effect.includeSource && card.RuntimeId == source.RuntimeId))
+                {
+                    continue;
+                }
+
+                bool enemy = card.OwnerIndex != source.OwnerIndex;
+                if (applySelectionRestrictions
+                    && ((enemy && card.IsStealth) || (spellSource && card.HasPassive(PassiveType.MagicImmunity))))
+                {
+                    continue;
+                }
+
+                targets.Add(SimulatedTarget.Card(card.RuntimeId));
+            }
+        }
+
+        return targets;
+    }
+
+    public static List<UnityEngine.Object> GetConfiguredGraveyardMinions(CardController source, EffectTargetSide side)
+    {
+        List<UnityEngine.Object> targets = new();
+        if (source == null || GM.Ins == null || GM.Ins.BM == null)
+        {
+            return targets;
+        }
+
+        foreach (PlayerController player in GM.Ins.BM.players)
+        {
+            if (player == null || !MatchesSide(player == source.player, side) || player.graveCards == null)
+            {
+                continue;
+            }
+
+            foreach (CardController card in player.graveCards)
+            {
+                if (card != null && card.cardData != null && card.cardData.cardType == CardType.Minion)
+                {
+                    targets.Add(card);
+                }
+            }
+        }
+
+        return targets;
+    }
+
+    public static List<SimulatedTarget> GetConfiguredGraveyardMinions(
+        BattleStateSnapshot state,
+        CardStateSnapshot source,
+        EffectTargetSide side)
+    {
+        List<SimulatedTarget> targets = new();
+        if (state == null || source == null)
+        {
+            return targets;
+        }
+
+        foreach (PlayerStateSnapshot player in state.Players)
+        {
+            if (player == null || !MatchesSide(player.PlayerIndex == source.OwnerIndex, side))
+            {
+                continue;
+            }
+
+            foreach (CardStateSnapshot card in player.Graveyard)
+            {
+                if (card != null && card.Data != null && card.Data.cardType == CardType.Minion)
+                {
+                    targets.Add(SimulatedTarget.Card(card.RuntimeId));
+                }
+            }
+        }
+
+        return targets;
+    }
+
+    public static bool MatchesSide(bool friendly, EffectTargetSide side)
+    {
+        return side == EffectTargetSide.Both
+            || (side == EffectTargetSide.Friendly && friendly)
+            || (side == EffectTargetSide.Enemy && !friendly);
+    }
+
     // ---------------- 运行时候选 ----------------
 
     public static List<UnityEngine.Object> GetEnemyCharacters(CardController source)

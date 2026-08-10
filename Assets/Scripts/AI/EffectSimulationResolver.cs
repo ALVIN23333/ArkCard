@@ -113,7 +113,7 @@ public static class EffectSimulationResolver
         if (hasConditions && !passed) return;
 
         ICardEffectDefinition definition = EffectRegistry.Get(effect.effectType);
-        List<SimulatedTarget> resolvedTargets = definition.IsTargeted
+        List<SimulatedTarget> resolvedTargets = definition.RequiresTargetSelection(effect)
             ? ResolveTargets(state, source, effect, explicitTargets)
             : null;
         definition.Simulate(state, source, effect, resolvedTargets, random);

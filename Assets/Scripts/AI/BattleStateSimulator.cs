@@ -258,6 +258,11 @@ public sealed class BattleStateSimulator
         return EffectRegistry.Get(effectType).IsTargeted;
     }
 
+    public static bool IsTargetedEffect(CardEffectData effect)
+    {
+        return effect != null && EffectRegistry.Get(effect.effectType).RequiresTargetSelection(effect);
+    }
+
     public static bool CheckConditions(BattleStateSnapshot state, CardStateSnapshot source, List<ConditionType> conditions)
     {
         if (conditions == null || conditions.Count == 0) return true;
@@ -510,7 +515,7 @@ public sealed class BattleStateSimulator
             }
             return null;
         }
-        return (!hasConditions || passed) && IsTargetedEffect(effect.effectType) ? effect : null;
+        return (!hasConditions || passed) && IsTargetedEffect(effect) ? effect : null;
     }
 
     private static bool HasGuard(PlayerStateSnapshot player)

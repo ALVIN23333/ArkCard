@@ -2004,6 +2004,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cardPrefab: {fileID: 8158298906750176114, guid: dccde9df8a85ab145b3bed79de5b9884, type: 3}
+  playQueuePoint: {fileID: 851915265}
+  queuedCardScale: 0.6
+  queuedCardVerticalSpacing: 2
+  queuedCardSortingBase: 200
   players:
   - {fileID: 265090977}
   - {fileID: 1989105137}
@@ -2529,6 +2533,37 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 100, y: 30, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &851915265
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 851915266}
+  m_Layer: 0
+  m_Name: CardPlayQueuePoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &851915266
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 851915265}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 9, y: 0, z: -2.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1580651638}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!1 &894267920
 GameObject:
   m_ObjectHideFlags: 0
@@ -4274,6 +4309,7 @@ Transform:
   - {fileID: 375106}
   - {fileID: 1508517166}
   - {fileID: 1817438944}
+  - {fileID: 851915266}
   - {fileID: 803197938}
   - {fileID: 894267924}
   m_Father: {fileID: 0}
@@ -5004,7 +5040,7 @@ Transform:
   m_GameObject: {fileID: 1817438943}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 9, y: 0, z: 0.01}
+  m_LocalPosition: {x: 9, y: -0, z: 0.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

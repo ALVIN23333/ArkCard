@@ -15,6 +15,11 @@ public abstract class CardEffectDefinitionBase : ICardEffectDefinition
     public virtual bool IsTargeted => false;
     public virtual TargetSelectionZone SelectionZone => TargetSelectionZone.Field;
 
+    public virtual bool RequiresTargetSelection(CardEffectData effect)
+    {
+        return IsTargeted;
+    }
+
     public virtual int SuggestedArrayLength
     {
         get

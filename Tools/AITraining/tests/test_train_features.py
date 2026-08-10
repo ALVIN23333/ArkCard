@@ -3,8 +3,6 @@ from __future__ import annotations
 import gzip
 import json
 import struct
-from dataclasses import asdict
-
 import numpy as np
 
 from arkcard_ai.dataset import (
@@ -23,6 +21,7 @@ from arkcard_ai.train import (
     load_history,
     partition_game_ids,
     prefetch_records,
+    save_history,
 )
 
 
@@ -134,11 +133,9 @@ def test_history_load_append_roundtrip(tmp_path):
             validation_total_loss=1.4,
         )
     )
-    _history_path(output).write_text(
-        json.dumps([asdict(item) for item in history], indent=2),
-        encoding="utf-8",
-    )
+    save_history(output, history)
 
     reloaded = load_history(output)
     assert [item.epoch for item in reloaded] == [19, 20]
     assert reloaded[1].validation_total_loss == 1.4
+    assert not (_history_path(output).with_suffix(".json.tmp")).exists()

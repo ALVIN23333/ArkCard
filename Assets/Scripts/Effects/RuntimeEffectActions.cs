@@ -226,6 +226,12 @@ public static class RuntimeEffectActions
             if (target is CardController targetCard)
             {
                 targetCard.Heal(healValue);
+                continue;
+            }
+
+            if (target is PlayerController targetPlayer)
+            {
+                targetPlayer.Heal(healValue);
             }
         }
     }
@@ -350,6 +356,58 @@ public static class RuntimeEffectActions
             targetCard.transform.localScale = Vector3.one;
             targetCard.Init(data, owner);
             owner.fieldController.AddCard(targetCard);
+        }
+    }
+
+    public static void ReviveForController(PlayerController destination, List<UnityEngine.Object> targets)
+    {
+        if (destination == null || destination.fieldController == null || targets == null)
+        {
+            return;
+        }
+
+        foreach (UnityEngine.Object target in targets)
+        {
+            if (destination.fieldController.fieldCards.Count >= GameConst.fieldMax)
+            {
+                return;
+            }
+
+            if (target is not CardController card || card.player == null || card.cardData == null
+                || card.cardData.cardType != CardType.Minion || !card.player.graveCards.Contains(card))
+            {
+                continue;
+            }
+
+            PlayerController previousOwner = card.player;
+            previousOwner.graveCards.Remove(card);
+            previousOwner.RefreshGraveyardSorting();
+            card.transform.localScale = Vector3.one;
+            card.Init(card.cardData, destination);
+            destination.fieldController.AddCard(card);
+        }
+    }
+
+    public static void Summon(PlayerController owner, CardData data, int count)
+    {
+        if (owner == null || owner.fieldController == null || data == null || data.cardType != CardType.Minion
+            || count <= 0 || GM.Ins == null || GM.Ins.BM == null || GM.Ins.BM.cardPrefab == null)
+        {
+            return;
+        }
+
+        int summonCount = Mathf.Min(count, Mathf.Max(0, GameConst.fieldMax - owner.fieldController.fieldCards.Count));
+        for (int i = 0; i < summonCount; i++)
+        {
+            CardController card = Object.Instantiate(GM.Ins.BM.cardPrefab, owner.fieldController.transform)
+                .GetComponent<CardController>();
+            if (card == null)
+            {
+                continue;
+            }
+
+            card.Init(data, owner);
+            owner.fieldController.AddCard(card);
         }
     }
 }

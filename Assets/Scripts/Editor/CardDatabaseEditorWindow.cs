@@ -140,6 +140,8 @@ public class CardDatabaseEditorWindow : EditorWindow
         databaseField.RegisterValueChangedCallback(evt =>
         {
             database = evt.newValue as CardListSO;
+            CardEffectMigrationService.MigrateIfNeeded(database);
+            RecreateSerializedDatabase();
             selectedCardIndex = database != null && database.cards != null && database.cards.Count > 0 ? 0 : -1;
             effectExpansionState.Clear();
             pendingNavigationPath = null;
@@ -382,6 +384,7 @@ public class CardDatabaseEditorWindow : EditorWindow
         effectFoldout.Add(new CardEffectEditorElement(
             cardProperty.FindPropertyRelative("effects"),
             selectedCard.cardType,
+            database,
             ApplyEffectChange,
             RefreshMiddlePanel,
             SetPendingEffectNavigation,
@@ -1001,6 +1004,8 @@ public class CardDatabaseEditorWindow : EditorWindow
         }
 
         database = AssetDatabase.LoadAssetAtPath<CardListSO>(DefaultDatabasePath);
+        CardEffectMigrationService.MigrateIfNeeded(database);
+        RecreateSerializedDatabase();
         if (database != null && database.cards != null && database.cards.Count > 0 && selectedCardIndex < 0)
         {
             selectedCardIndex = 0;

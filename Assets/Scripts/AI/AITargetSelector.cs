@@ -37,6 +37,11 @@ public static class AITargetSelector
 
         if (target.Kind == SimulatedTargetKind.Player)
         {
+            if (effect.effectType == EffectType.Heal || effect.effectType == EffectType.Damage)
+            {
+                return EffectRegistry.Get(effect.effectType).ScoreSimulationTarget(state, source, effect, target);
+            }
+
             PlayerStateSnapshot player = state.GetPlayer(target.Id);
             if (player == null)
             {
@@ -93,6 +98,11 @@ public static class AITargetSelector
         }
         if (target is PlayerController player)
         {
+            if (effect.effectType == EffectType.Heal || effect.effectType == EffectType.Damage)
+            {
+                return EffectRegistry.Get(effect.effectType).ScoreRuntimeTarget(source, effect, target);
+            }
+
             int damage = EffectValues.GetValue(effect, 0);
             double score = damage >= player.health
                 ? 1000 + source.cardData.aiLethalBonus

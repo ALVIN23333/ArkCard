@@ -242,6 +242,16 @@ def load_history(output: Path) -> list[EpochMetrics]:
     return [EpochMetrics(**item) for item in items]
 
 
+def save_history(output: Path, history: Sequence[EpochMetrics]) -> None:
+    path = _history_path(output)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps([asdict(item) for item in history], indent=2),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
 def backup_history(output: Path) -> None:
     path = _history_path(output)
     if path.exists():
@@ -398,12 +408,8 @@ def main() -> None:
                     sort_keys=True,
                 )
             )
+        save_history(output, history)
         print(json.dumps(asdict(metrics), sort_keys=True))
-
-    _history_path(output).write_text(
-        json.dumps([asdict(item) for item in history], indent=2),
-        encoding="utf-8",
-    )
 
 
 def _validate_checkpoint_schema(checkpoint: dict) -> None:

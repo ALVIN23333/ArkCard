@@ -37,6 +37,42 @@ public enum EffectType
     AllyBackHand=107,
     EnemyBackHand=108,
     ReviveAlly=109,
+
+    // Unified configurable effects. Existing serialized values 0-109 must never change.
+    Damage=110,
+    Heal=111,
+    Destroy=112,
+    Buff=113,
+    BackHand=114,
+    Discard=115,
+    Revive=116,
+    SummonMinion=117,
+    SummonRandomCostMinion=118,
+    DrawCards=119,
+    Cost=120,
+    Silence=121,
+}
+
+public enum EffectTargetSide
+{
+    Friendly=0,
+    Enemy=1,
+    Both=2,
+}
+
+public enum EffectTargetMode
+{
+    Self=0,
+    All=1,
+    Selected=2,
+    Random=3,
+}
+
+public enum EffectCharacterScope
+{
+    Minions=0,
+    Heroes=1,
+    Characters=2,
 }
 
 public enum PassiveType

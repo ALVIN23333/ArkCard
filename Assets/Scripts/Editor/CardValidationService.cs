@@ -126,7 +126,7 @@ internal static class CardValidationService
         {
             for (int i = 0; i < card.effects.Count; i++)
             {
-                ValidateEffect(card, card.effects[i], selectedCardIndex, $"{cardPath}.effects.Array.data[{i}]", true, messages);
+                ValidateEffect(database, card, card.effects[i], selectedCardIndex, $"{cardPath}.effects.Array.data[{i}]", true, messages);
             }
         }
 
@@ -165,6 +165,7 @@ internal static class CardValidationService
     }
 
     private static void ValidateEffect(
+        CardListSO database,
         CardData card,
         CardEffectData effect,
         int cardIndex,
@@ -195,6 +196,8 @@ internal static class CardValidationService
                 $"效果参数不完整，缺少：{missingParameter.Label}。"));
         }
 
+        ValidateUnifiedEffect(database, card, effect, cardIndex, effectPath, messages);
+
         if (card.cardType == CardType.SPELL && isTopLevel && effect.triggerType != TriggerType.None)
         {
             messages.Add(new CardValidationMessage(CardValidationSeverity.Warning, cardIndex, $"{effectPath}.triggerType", "法术卡顶层效果建议使用 TriggerType.None。"));
@@ -209,7 +212,7 @@ internal static class CardValidationService
         {
             for (int i = 0; i < effect.thenEffects.Count; i++)
             {
-                ValidateEffect(card, effect.thenEffects[i], cardIndex, $"{effectPath}.thenEffects.Array.data[{i}]", false, messages);
+                ValidateEffect(database, card, effect.thenEffects[i], cardIndex, $"{effectPath}.thenEffects.Array.data[{i}]", false, messages);
             }
         }
 
@@ -217,7 +220,93 @@ internal static class CardValidationService
         {
             for (int i = 0; i < effect.elseEffects.Count; i++)
             {
-                ValidateEffect(card, effect.elseEffects[i], cardIndex, $"{effectPath}.elseEffects.Array.data[{i}]", false, messages);
+                ValidateEffect(database, card, effect.elseEffects[i], cardIndex, $"{effectPath}.elseEffects.Array.data[{i}]", false, messages);
+            }
+        }
+    }
+
+    private static void ValidateUnifiedEffect(
+        CardListSO database,
+        CardData card,
+        CardEffectData effect,
+        int cardIndex,
+        string effectPath,
+        List<CardValidationMessage> messages)
+    {
+        if (!EffectEditorCatalog.IsUnified(effect.effectType))
+        {
+            return;
+        }
+
+        int countIndex = effect.effectType is EffectType.Destroy or EffectType.BackHand or EffectType.Discard or EffectType.Revive ? 0
+            : effect.effectType == EffectType.Buff ? 2
+            : effect.effectType == EffectType.Silence ? 0 : 1;
+        bool countRequired = effect.effectType is EffectType.Discard or EffectType.Revive
+            or EffectType.SummonMinion or EffectType.SummonRandomCostMinion
+            || (effect.effectType == EffectType.Silence && (effect.targetMode is EffectTargetMode.Selected or EffectTargetMode.Random))
+            || (effect.targetMode is EffectTargetMode.Selected or EffectTargetMode.Random);
+        if (countRequired && EffectValues.GetValue(effect, countIndex) <= 0)
+        {
+            messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, $"{effectPath}.effectValues", "效果数量必须大于 0。"));
+        }
+
+        if ((effect.effectType is EffectType.Damage or EffectType.Heal) && EffectValues.GetValue(effect, 0) <= 0)
+        {
+            messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, $"{effectPath}.effectValues", "伤害或治疗数值必须大于 0。"));
+        }
+
+        if (effect.effectType == EffectType.DrawCards && EffectValues.GetValue(effect, 0) <= 0)
+        {
+            messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, $"{effectPath}.effectValues", "抽牌数量必须大于 0。"));
+        }
+
+        if (effect.effectType == EffectType.Cost)
+        {
+            int currentCost = EffectValues.GetValue(effect, 0);
+            int maxCost = EffectValues.GetValue(effect, 1);
+            if (currentCost < 0 || maxCost < 0)
+            {
+                messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, $"{effectPath}.effectValues", "费用增量不能为负数。"));
+            }
+            else if (currentCost == 0 && maxCost == 0)
+            {
+                messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, $"{effectPath}.effectValues", "当前费用或费用上限至少增加一项。"));
+            }
+        }
+
+        if (effect.effectType == EffectType.Silence && effect.targetMode == EffectTargetMode.Self
+            && card.cardType == CardType.SPELL)
+        {
+            messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, effectPath, "法术不能配置为沉默自身。"));
+        }
+
+        if (effect.effectType == EffectType.SummonMinion)
+        {
+            CardData summon = database != null ? database.GetData(EffectValues.GetValue(effect, 0)) : null;
+            if (summon == null || summon.cardType != CardType.Minion)
+            {
+                messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, $"{effectPath}.effectValues", "召唤卡牌 ID 必须对应随从卡。"));
+            }
+        }
+
+        if (effect.effectType == EffectType.SummonRandomCostMinion)
+        {
+            int cost = EffectValues.GetValue(effect, 0);
+            bool found = false;
+            if (database != null && database.cards != null)
+            {
+                foreach (CardData candidate in database.cards)
+                {
+                    if (candidate != null && candidate.cardType == CardType.Minion && candidate.cost == cost)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!found)
+            {
+                messages.Add(new CardValidationMessage(CardValidationSeverity.Error, cardIndex, $"{effectPath}.effectValues", $"卡牌库中没有 {cost} 费随从。"));
             }
         }
     }

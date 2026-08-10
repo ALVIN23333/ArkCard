@@ -203,6 +203,8 @@ public static class EffectRegistry
         public TargetSelectionZone SelectionZone => TargetSelectionZone.Field;
         public int SuggestedArrayLength => 0;
 
+        public bool RequiresTargetSelection(CardEffectData effect) => false;
+
         public int GetSelectionCount(CardEffectData effect) => 1;
         public int GetRuntimeSelectionCount(CardController source, CardEffectData effect) => 1;
         public int GetSimulationSelectionCount(BattleStateSnapshot state, CardStateSnapshot source, CardEffectData effect) => 1;

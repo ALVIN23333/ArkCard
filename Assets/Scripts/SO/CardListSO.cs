@@ -5,6 +5,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "ArkCardsDatabase", menuName = "ArkCards/Card List SO")]
 public class CardListSO : ScriptableObject
 {
+    public int effectSchemaVersion;
     public List<CardData> cards = new();
 
     public CardData GetData(int id)

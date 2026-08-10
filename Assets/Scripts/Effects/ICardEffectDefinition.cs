@@ -15,6 +15,8 @@ public interface ICardEffectDefinition
     TargetSelectionZone SelectionZone { get; }
     int SuggestedArrayLength { get; }
 
+    bool RequiresTargetSelection(CardEffectData effect);
+
     int GetSelectionCount(CardEffectData effect);
     int GetRuntimeSelectionCount(CardController source, CardEffectData effect);
     int GetSimulationSelectionCount(BattleStateSnapshot state, CardStateSnapshot source, CardEffectData effect);

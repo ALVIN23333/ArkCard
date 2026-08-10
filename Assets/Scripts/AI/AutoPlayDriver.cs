@@ -202,54 +202,10 @@ public class AutoPlayDriver : MonoBehaviour
         }
 
         List<UnityEngine.Object> targets = ResolveRuntimeTargets(action.Targets);
-        if (card.cardData.cardType == CardType.SPELL)
-        {
-            if (!GM.Ins.BM.CanUseSpell(card) || !card.player.SpendCost(card.cost))
-            {
-                return false;
-            }
-
-            TargetManager targetManager = GM.Ins.BM.TM;
-            void TriggerSpellAfterHangingReady()
-            {
-                GM.Ins.BM.EM.TriggerSpellEffect(card, targets, () =>
-                {
-                    if (targetManager != null)
-                    {
-                        targetManager.ReleaseHangingState(card, () => card.player.SendCardToGraveyard(card));
-                    }
-                    else
-                    {
-                        card.player.SendCardToGraveyard(card);
-                    }
-                });
-            }
-
-            if (targetManager == null || !targetManager.EnterHangingState(card, false, TriggerSpellAfterHangingReady))
-            {
-                TriggerSpellAfterHangingReady();
-            }
-            return true;
-        }
-
-        if (card.cardData.cardType != CardType.Minion
-            || !GM.Ins.BM.CanUseMinion(card, card.player.fieldController)
-            || !card.player.SpendCost(card.cost))
-        {
-            return false;
-        }
-
-        card.transform.localScale = Vector3.one;
-        card.player.handController.RemoveCard(card);
-        card.player.fieldController.AddCard(card);
-        AnimeManager.Delay(AnimeManager.FieldRefreshDuration, () =>
-        {
-            if (card != null && card.state == CardState.Field)
-            {
-                GM.Ins.BM.EM.TriggerCardEffect(card, TriggerType.Enter, targets);
-            }
-        });
-        return true;
+        FieldController targetField = card.cardData.cardType == CardType.Minion
+            ? card.player.fieldController
+            : null;
+        return GM.Ins.BM.TryQueueHandCardPlay(card, targetField, targets);
     }
 
     private CardController FindRuntimeCard(int runtimeId)

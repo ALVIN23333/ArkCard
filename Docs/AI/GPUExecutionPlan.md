@@ -59,7 +59,7 @@ flowchart LR
 在 Unity 机器上先审核并提交当前 ML 实现，再推送到 GitHub：
 
 ```powershell
-cd D:\unityXiangmu\ArkCard
+cd D:\biancheng\明日方舟卡牌
 git status --short
 git diff --check
 
@@ -165,7 +165,7 @@ PY
 数据集由 Git 忽略，必须单独传输。先在 Unity Windows 机器生成包含所有文件的校验清单：
 
 ```powershell
-$Dataset = 'D:\unityXiangmu\ArkCard\Artifacts\AI\Datasets\teacher-v1'
+$Dataset = 'D:\biancheng\明日方舟卡牌\Artifacts\AI\Datasets\teacher-v1'
 
 Get-ChildItem -LiteralPath $Dataset -File |
   Where-Object Name -ne 'SHA256SUMS' |
@@ -394,7 +394,7 @@ Pop-Location
 确认结果后，将 `policy.onnx`、`value.onnx`、`manifest.json` 放到：
 
 ```text
-D:\unityXiangmu\ArkCard\Assets\AI\Models\
+D:\biancheng\明日方舟卡牌\Assets\AI\Models\
 ```
 
 不要复制 `SHA256SUMS`、checkpoint 或日志到该目录，不要手工编辑 `.asset` YAML。
@@ -414,7 +414,7 @@ D:\unityXiangmu\ArkCard\Assets\AI\Models\
 
 ```powershell
 & 'D:\unityEditor\2022.3.62f3c1\Editor\Unity.exe' -batchmode -quit `
-  -projectPath D:\unityXiangmu\ArkCard `
+  -projectPath D:\biancheng\明日方舟卡牌 `
   -executeMethod ArenaRunner.RunFromCommandLine `
   -aiArenaGames 1000 `
   -aiSeed 20260806 `
@@ -462,20 +462,20 @@ arkcard-train \
 
 首轮 checkpoint 的最后 epoch 是 `19`，因此 `--epochs 40` 会继续训练 epoch `20..39`。每一轮都必须使用新的数据目录、run ID、模型版本和竞技场报告。
 
-## 15. 当前实现的两个硬缺口
+## 15. 当前实现状态与剩余缺口
 
-以下问题不阻止训练首个教师候选，但在建立长期自博弈流水线前应修复：
+以下能力已经实现，不再是缺口：按完整 `game_id` 的训练/验证拆分、`best.pt`、history
+续写、AMP、后台预取、多牌组教师矩阵、真实数据 PyTorch/ONNX parity，以及候选模型对
+当前冠军配置的配对竞技场。
 
-1. `train.py` 目前把全部数据用于训练，没有按 `game_id` 划分验证集，也没有保存验证最优 checkpoint。成熟实现应按完整对局分组切分训练/验证集，防止同一对局的相邻状态泄漏到两侧，并依据综合验证损失选择模型。
-2. `ArenaRunner` 当前只支持“一个神经候选对旧 MCTS”。从第二个神经版本开始，晋级标准应是候选对当前冠军，双方交换先后手、牌组并复用配对随机种子；因此需要扩展为同时接收 candidate/champion 两个 `AIModelConfig`。
+建立长期自博弈流水线前仍应完成：
 
-推荐的下一轮训练提效顺序：
-
-1. 增加按 `game_id` 的训练/验证拆分、best checkpoint 和完整 history 续写。
-2. 增加 AMP 混合精度、数据预取和可配置 worker；当前小模型很可能受 gzip/Python 输入管线限制。
-3. 增加多牌组、交换先后手的数据生成矩阵，降低当前固定牌组和先手偏差。
-4. 在固定真实数据样本上比较 PyTorch、ONNX Runtime 和 Barracuda，而不仅使用随机导出输入。
-5. 最后再考虑多 GPU；以当前模型和 100k 样本规模，优化输入管线通常比引入分布式训练更有效。
+1. 把竞技场从单一牌组对扩展为多牌组矩阵和分层报告。
+2. 自动核对 Unity 数据分片 sidecar manifest 与 SHA-256，而不只依赖完整解码。
+3. 加入固定黄金输入的 ONNX Runtime/Barracuda 数值对比。
+4. checkpoint 保存 AMP scaler 与各 RNG 状态，支持严格可复现续训。
+5. 评估自博弈前若干 ply 的访问分布温度采样，提高状态覆盖。
+6. 最后再考虑多 GPU；以当前模型和数据规模，优先优化输入管线。
 
 ## 16. 最终交付清单
 

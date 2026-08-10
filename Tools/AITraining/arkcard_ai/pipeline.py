@@ -13,7 +13,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 TOOLS_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = TOOLS_DIR / "configs" / "default.toml"
-DEFAULT_UNITY = "D:/unityEditor/2022.3.62f3c1/Editor/Unity.exe"
+DEFAULT_UNITY = "D:/unity/2022.3.62f3c1/Editor/Unity.exe"
 
 
 # --------------------------------------------------------------------------- config
@@ -433,7 +433,12 @@ def cmd_arena(config: dict, args: argparse.Namespace) -> None:
     report_dir = project_path(str(arena_cfg.get("reportDir", "Artifacts/AI/Reports")))
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    def run_arena(games: int, report_name: str, log_name: str) -> dict:
+    def run_arena(
+        games: int,
+        report_name: str,
+        log_name: str,
+        required_games: int,
+    ) -> dict:
         report = report_dir / report_name
         run_unity(
             config,
@@ -447,12 +452,22 @@ def cmd_arena(config: dict, args: argparse.Namespace) -> None:
             ],
             run_dir_path / log_name,
         )
-        return check_arena(report, minimum_games, minimum_score_rate, maximum_p95_ms)
+        return check_arena(report, required_games, minimum_score_rate, maximum_p95_ms)
 
-    smoke = run_arena(smoke_games, f"{version}-smoke.json", "arena-smoke.log")
+    smoke = run_arena(
+        smoke_games,
+        f"{version}-smoke.json",
+        "arena-smoke.log",
+        smoke_games,
+    )
     result = {"modelVersion": version, "smoke": smoke, "formal": None, "promotable": False}
     if smoke["passed"]:
-        formal = run_arena(formal_games, f"{version}-arena.json", "arena-formal.log")
+        formal = run_arena(
+            formal_games,
+            f"{version}-arena.json",
+            "arena-formal.log",
+            minimum_games,
+        )
         result["formal"] = formal
         result["promotable"] = bool(formal["passed"])
     else:

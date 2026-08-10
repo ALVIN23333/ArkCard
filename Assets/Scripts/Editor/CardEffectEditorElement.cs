@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -17,6 +18,7 @@ internal sealed class CardEffectEditorElement : VisualElement
     private readonly Dictionary<string, VisualElement> localNavigationTargets = new();
     private readonly SerializedProperty effectsProperty;
     private readonly CardType cardType;
+    private readonly CardListSO database;
     private readonly Action<string, Action> applyChange;
     private readonly Action<string> setPendingNavigation;
     private readonly Action<string, VisualElement> registerNavigationTarget;
@@ -29,6 +31,7 @@ internal sealed class CardEffectEditorElement : VisualElement
     public CardEffectEditorElement(
         SerializedProperty effectsProperty,
         CardType cardType,
+        CardListSO database,
         Action<string, Action> applyChange,
         Action rebuildOnly,
         Action<string> setPendingNavigation,
@@ -38,6 +41,7 @@ internal sealed class CardEffectEditorElement : VisualElement
     {
         this.effectsProperty = effectsProperty;
         this.cardType = cardType;
+        this.database = database;
         this.applyChange = applyChange;
         this.setPendingNavigation = setPendingNavigation;
         this.registerNavigationTarget = registerNavigationTarget;
@@ -221,7 +225,8 @@ internal sealed class CardEffectEditorElement : VisualElement
         TriggerType triggerType = (TriggerType)effectProperty.FindPropertyRelative("triggerType").enumValueIndex;
         // EffectType 是非连续枚举，enumValueIndex 是排序下标而非原始值，必须经注册表转换。
         EffectType effectType = EffectRegistry.GetEffectTypeAt(effectProperty.FindPropertyRelative("effectType").enumValueIndex);
-        return $"效果 {effectIndex + 1}  {EditorLabelUtility.GetTriggerTypeLabel(triggerType)} / {EditorLabelUtility.GetEffectTypeLabel(effectType)}";
+        EffectTargetMode targetMode = (EffectTargetMode)effectProperty.FindPropertyRelative("targetMode").enumValueIndex;
+        return $"效果 {effectIndex + 1}  {EditorLabelUtility.GetTriggerTypeLabel(triggerType)} / {EffectEditorCatalog.GetDisplayLabel(effectType, targetMode)}";
     }
 
     private static bool HasBranchEffects(SerializedProperty effectProperty)
@@ -297,6 +302,10 @@ internal sealed class CardEffectEditorElement : VisualElement
         effectProperty.FindPropertyRelative("triggerType").enumValueIndex = forceNoneTrigger ? (int)TriggerType.None : (int)TriggerType.Enter;
         effectProperty.FindPropertyRelative("conditionTypes").arraySize = 0;
         effectProperty.FindPropertyRelative("effectType").enumValueIndex = (int)EffectType.None;
+        effectProperty.FindPropertyRelative("targetSide").enumValueIndex = (int)EffectTargetSide.Friendly;
+        effectProperty.FindPropertyRelative("targetMode").enumValueIndex = (int)EffectTargetMode.All;
+        effectProperty.FindPropertyRelative("characterScope").enumValueIndex = (int)EffectCharacterScope.Minions;
+        effectProperty.FindPropertyRelative("includeSource").boolValue = true;
         effectProperty.FindPropertyRelative("effectValues").arraySize = 0;
         effectProperty.FindPropertyRelative("thenEffects").arraySize = 0;
         effectProperty.FindPropertyRelative("elseEffects").arraySize = 0;
@@ -491,25 +500,46 @@ internal sealed class CardEffectEditorElement : VisualElement
             BuildConditionList(content, effectProperty.FindPropertyRelative("conditionTypes"));
 
             SerializedProperty effectTypeProperty = effectProperty.FindPropertyRelative("effectType");
-            PopupField<string> effectTypeField = new(
-                "效果类型",
-                EditorLabelUtility.GetEffectTypeLabels(),
-                effectTypeProperty.enumValueIndex);
-            effectTypeField.RegisterValueChangedCallback(_ =>
+            EffectType currentEffectType = EffectRegistry.GetEffectTypeAt(effectTypeProperty.enumValueIndex);
+            EffectTargetMode currentMode = (EffectTargetMode)effectProperty.FindPropertyRelative("targetMode").enumValueIndex;
+            VisualElement effectTypeRow = new();
+            effectTypeRow.style.flexDirection = FlexDirection.Row;
+            effectTypeRow.style.alignItems = Align.Center;
+            Label effectTypeLabel = new("效果类型");
+            effectTypeLabel.style.minWidth = 120;
+            effectTypeRow.Add(effectTypeLabel);
+            ToolbarMenu effectTypeField = new() { text = EffectEditorCatalog.GetDisplayLabel(currentEffectType, currentMode) };
+            effectTypeField.style.flexGrow = 1;
+            foreach (EffectEditorOption option in EffectEditorCatalog.GetOptions())
             {
-                owner.applyChange("Update Effect Type", () =>
+                string path = option.Section == EffectEditorSection.None
+                    ? option.Label
+                    : $"{EffectEditorCatalog.GetSectionLabel(option.Section)}/{option.Label}";
+                effectTypeField.menu.AppendAction(path, _ =>
                 {
-                    effectTypeProperty.enumValueIndex = effectTypeField.index;
-                    EffectType newEffectType = EffectRegistry.GetEffectTypeAt(effectTypeField.index);
-                    ResetEffectValuesForSchema(effectProperty.FindPropertyRelative("effectValues"), newEffectType);
+                    owner.applyChange("Update Effect Type", () =>
+                    {
+                        effectTypeProperty.enumValueIndex = EffectRegistry.GetLabelIndex(option.EffectType);
+                        effectProperty.FindPropertyRelative("targetMode").enumValueIndex = (int)option.TargetMode;
+                        effectProperty.FindPropertyRelative("targetSide").enumValueIndex = (int)EffectTargetSide.Friendly;
+                        effectProperty.FindPropertyRelative("characterScope").enumValueIndex = (int)EffectCharacterScope.Minions;
+                        effectProperty.FindPropertyRelative("includeSource").boolValue = true;
+                        ResetEffectValuesForSchema(effectProperty.FindPropertyRelative("effectValues"), option.EffectType);
+                    });
+                    owner.setPendingNavigation?.Invoke($"{currentPath}.effectType");
+                    RebuildSelf($"{currentPath}.effectType", NavigationMode.FocusOnly);
                 });
-                owner.setPendingNavigation?.Invoke($"{currentPath}.effectType");
-                RebuildSelf($"{currentPath}.effectType", NavigationMode.FocusOnly);
-            });
+            }
+            effectTypeField.menu.AppendAction(
+                $"{EffectEditorCatalog.GetSectionLabel(EffectEditorSection.Special)}/暂无可用效果",
+                _ => { },
+                _ => DropdownMenuAction.Status.Disabled);
+            effectTypeRow.Add(effectTypeField);
             owner.RegisterTarget($"{currentPath}.effectType", effectTypeField);
-            content.Add(effectTypeField);
+            content.Add(effectTypeRow);
 
-            BuildEffectValueFields(content, effectProperty.FindPropertyRelative("effectValues"), EffectRegistry.GetEffectTypeAt(effectTypeProperty.enumValueIndex));
+            BuildTargetConfigurationFields(content, effectProperty, currentEffectType);
+            BuildEffectValueFields(content, effectProperty.FindPropertyRelative("effectValues"), currentEffectType);
 
             if (HasConditions(effectProperty) && HasBranchEffects(effectProperty))
             {
@@ -674,6 +704,18 @@ internal sealed class CardEffectEditorElement : VisualElement
 
             foreach (EffectValueParameter parameter in definition.Parameters)
             {
+                EffectTargetMode targetMode = (EffectTargetMode)GetEffectProperty().FindPropertyRelative("targetMode").enumValueIndex;
+                if (!ShouldShowParameter(effectType, targetMode, parameter.Index))
+                {
+                    continue;
+                }
+
+                if (effectType == EffectType.SummonMinion && parameter.Index == 0)
+                {
+                    BuildMinionIdField(valueBox, effectValuesProperty, parameter);
+                    continue;
+                }
+
                 IntegerField field = new(parameter.Label);
                 field.value = GetEffectValue(effectValuesProperty, parameter.Index, parameter.DefaultValue);
                 field.style.marginTop = 6;
@@ -689,6 +731,127 @@ internal sealed class CardEffectEditorElement : VisualElement
                 owner.RegisterTarget($"{currentPath}.effectValues[{parameter.Index}]", field);
                 valueBox.Add(field);
             }
+        }
+
+        private void BuildTargetConfigurationFields(VisualElement parent, SerializedProperty effectProperty, EffectType effectType)
+        {
+            if (!EffectEditorCatalog.HasTargetConfiguration(effectType))
+            {
+                return;
+            }
+
+            Box box = CreateInsetBox();
+            box.Add(new Label("目标配置"));
+            parent.Add(box);
+
+            SerializedProperty modeProperty = effectProperty.FindPropertyRelative("targetMode");
+            IReadOnlyList<EffectTargetMode> modes = EffectEditorCatalog.GetModes(effectType);
+            if (modes.Count > 1)
+            {
+                List<string> labels = new();
+                int selectedIndex = 0;
+                for (int i = 0; i < modes.Count; i++)
+                {
+                    labels.Add(GetTargetModeLabel(modes[i]));
+                    if ((int)modes[i] == modeProperty.enumValueIndex) selectedIndex = i;
+                }
+                PopupField<string> modeField = new("选择方式", labels, selectedIndex);
+                modeField.RegisterValueChangedCallback(_ =>
+                {
+                    owner.applyChange("Update Target Mode", () => modeProperty.enumValueIndex = (int)modes[modeField.index]);
+                    RebuildSelf($"{currentPath}.targetMode", NavigationMode.FocusOnly);
+                });
+                box.Add(modeField);
+            }
+
+            EffectTargetMode mode = (EffectTargetMode)modeProperty.enumValueIndex;
+            if (EffectEditorCatalog.UsesTargetSide(effectType) && mode != EffectTargetMode.Self)
+            {
+                AddEnumPopup(box, "作用方", effectProperty.FindPropertyRelative("targetSide"), new List<string> { "友方", "敌方", "双方" });
+            }
+
+            if (EffectEditorCatalog.UsesCharacterScope(effectType))
+            {
+                AddEnumPopup(box, "角色范围", effectProperty.FindPropertyRelative("characterScope"), new List<string> { "随从", "英雄", "全部角色" });
+            }
+
+            if (EffectEditorCatalog.UsesIncludeSource(effectType, mode))
+            {
+                SerializedProperty includeProperty = effectProperty.FindPropertyRelative("includeSource");
+                Toggle toggle = new("包含效果来源") { value = includeProperty.boolValue };
+                toggle.RegisterValueChangedCallback(evt => owner.applyChange("Update Include Source", () => includeProperty.boolValue = evt.newValue));
+                box.Add(toggle);
+            }
+        }
+
+        private void AddEnumPopup(VisualElement parent, string label, SerializedProperty property, List<string> labels)
+        {
+            PopupField<string> field = new(label, labels, Mathf.Clamp(property.enumValueIndex, 0, labels.Count - 1));
+            field.RegisterValueChangedCallback(_ =>
+            {
+                owner.applyChange("Update Effect Target Configuration", () => property.enumValueIndex = field.index);
+                owner.setPendingNavigation?.Invoke(property.propertyPath);
+            });
+            owner.RegisterTarget(property.propertyPath, field);
+            parent.Add(field);
+        }
+
+        private void BuildMinionIdField(Box parent, SerializedProperty valuesProperty, EffectValueParameter parameter)
+        {
+            EnsureArrayLength(valuesProperty, parameter.Index + 1);
+            int currentId = valuesProperty.GetArrayElementAtIndex(parameter.Index).intValue;
+            List<CardData> minions = new();
+            List<string> labels = new();
+            int selectedIndex = 0;
+            if (owner.database != null && owner.database.cards != null)
+            {
+                foreach (CardData card in owner.database.cards)
+                {
+                    if (card == null || card.cardType != CardType.Minion) continue;
+                    if (card.index == currentId) selectedIndex = labels.Count;
+                    minions.Add(card);
+                    labels.Add($"{card.index} | {card.name} | {card.cost}费");
+                }
+            }
+
+            if (labels.Count == 0)
+            {
+                parent.Add(new HelpBox("卡牌数据库中没有可召唤的随从。", HelpBoxMessageType.Warning));
+                return;
+            }
+
+            PopupField<string> field = new(parameter.Label, labels, Mathf.Clamp(selectedIndex, 0, labels.Count - 1));
+            field.RegisterValueChangedCallback(_ =>
+            {
+                owner.applyChange("Update Summon Minion ID", () => valuesProperty.GetArrayElementAtIndex(parameter.Index).intValue = minions[field.index].index);
+                owner.setPendingNavigation?.Invoke($"{currentPath}.effectValues[{parameter.Index}]");
+            });
+            parent.Add(field);
+        }
+
+        private static bool ShouldShowParameter(EffectType effectType, EffectTargetMode mode, int parameterIndex)
+        {
+            if ((effectType == EffectType.Damage || effectType == EffectType.Heal) && parameterIndex == 1)
+                return mode is EffectTargetMode.Selected or EffectTargetMode.Random;
+            if (effectType == EffectType.Buff && parameterIndex == 2)
+                return mode is EffectTargetMode.Selected or EffectTargetMode.Random;
+            if ((effectType == EffectType.Destroy || effectType == EffectType.BackHand) && parameterIndex == 0)
+                return mode is EffectTargetMode.Selected or EffectTargetMode.Random;
+            if (effectType == EffectType.Silence && parameterIndex == 0)
+                return mode is EffectTargetMode.Selected or EffectTargetMode.Random;
+            return true;
+        }
+
+        private static string GetTargetModeLabel(EffectTargetMode mode)
+        {
+            return mode switch
+            {
+                EffectTargetMode.Self => "自身",
+                EffectTargetMode.All => "全体",
+                EffectTargetMode.Selected => "需要指定",
+                EffectTargetMode.Random => "随机",
+                _ => "未定义",
+            };
         }
     }
 }

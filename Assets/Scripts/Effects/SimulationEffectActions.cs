@@ -44,17 +44,14 @@ public static class SimulationEffectActions
 
         for (int i = 0; i < count && player.Hand.Count > 0; i++)
         {
-            int bestIndex = 0;
-            for (int j = 1; j < player.Hand.Count; j++)
+            int randomIndex = (random ??= new Random()).Next(player.Hand.Count);
+            CardStateSnapshot card = player.Hand[randomIndex];
+            player.Hand.RemoveAt(randomIndex);
+            if (card == null)
             {
-                if (player.Hand[j] != null
-                    && (player.Hand[bestIndex] == null || player.Hand[j].Cost > player.Hand[bestIndex].Cost))
-                {
-                    bestIndex = j;
-                }
+                i--;
+                continue;
             }
-            CardStateSnapshot card = player.Hand[bestIndex];
-            player.Hand.RemoveAt(bestIndex);
             card.ResetRuntimeState(CardState.Graveyard);
             player.Graveyard.Add(card);
         }
@@ -137,5 +134,49 @@ public static class SimulationEffectActions
         owner.Graveyard.Remove(card);
         card.ResetRuntimeState(CardState.Field);
         owner.Field.Add(card);
+    }
+
+    public static void ReviveForController(BattleStateSnapshot state, PlayerStateSnapshot destination, CardStateSnapshot card)
+    {
+        if (state == null || destination == null || card == null || destination.Field.Count >= GameConst.fieldMax
+            || card.Data == null || card.Data.cardType != CardType.Minion)
+        {
+            return;
+        }
+
+        PlayerStateSnapshot previousOwner = state.GetPlayer(card.OwnerIndex);
+        if (previousOwner == null || !previousOwner.Graveyard.Remove(card))
+        {
+            return;
+        }
+
+        card.OwnerIndex = destination.PlayerIndex;
+        card.ResetRuntimeState(CardState.Field);
+        destination.Field.Add(card);
+    }
+
+    public static void Summon(BattleStateSnapshot state, PlayerStateSnapshot owner, CardData data, int count)
+    {
+        if (state == null || owner == null || data == null || data.cardType != CardType.Minion || count <= 0)
+        {
+            return;
+        }
+
+        int nextId = -1;
+        foreach (PlayerStateSnapshot player in state.Players)
+        {
+            foreach (CardStateSnapshot card in player.Hand) nextId = Math.Min(nextId, card.RuntimeId - 1);
+            foreach (CardStateSnapshot card in player.Field) nextId = Math.Min(nextId, card.RuntimeId - 1);
+            foreach (CardStateSnapshot card in player.Graveyard) nextId = Math.Min(nextId, card.RuntimeId - 1);
+            foreach (CardStateSnapshot card in player.DeckRemaining) nextId = Math.Min(nextId, card.RuntimeId - 1);
+        }
+
+        int summonCount = Math.Min(count, Math.Max(0, GameConst.fieldMax - owner.Field.Count));
+        for (int i = 0; i < summonCount; i++)
+        {
+            CardStateSnapshot card = new() { RuntimeId = nextId--, OwnerIndex = owner.PlayerIndex, Data = data };
+            card.ResetRuntimeState(CardState.Field);
+            owner.Field.Add(card);
+        }
     }
 }

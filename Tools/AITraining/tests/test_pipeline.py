@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from pathlib import Path
+from argparse import Namespace
 
 import pytest
 
 from arkcard_ai.pipeline import (
     DEFAULT_CONFIG,
+    PROJECT_ROOT,
     _coerce,
     _export_args,
     _train_args,
     _unity_data_args,
+    cmd_arena,
     load_config,
     model_version,
     run_dir,
@@ -147,4 +149,36 @@ def test_export_args_default_to_run_dir_and_version(tmp_path):
 
 def test_run_dir_defaults_from_model_version(tmp_path):
     config = {"round": {"modelVersion": "v2-candidate"}}
-    assert run_dir(config) == Path("F:/ArkCard/Tools/runs/v2-candidate")
+    assert run_dir(config) == PROJECT_ROOT / "Tools/runs/v2-candidate"
+
+
+def test_arena_smoke_uses_smoke_game_count_as_its_gate(tmp_path, monkeypatch):
+    config_path = tmp_path / "round.toml"
+    config_path.write_text("[round]\nmodelVersion = \"candidate\"\n", encoding="utf-8")
+    config = {
+        "round": {
+            "modelVersion": "candidate",
+            "seed": 7,
+            "runDir": str(tmp_path / "run"),
+        },
+        "arena": {
+            "smokeGames": 20,
+            "games": 1000,
+            "minimumGames": 1000,
+            "reportDir": str(tmp_path / "reports"),
+        },
+    }
+    required_game_counts = []
+
+    monkeypatch.setattr("arkcard_ai.pipeline.run_unity", lambda *args, **kwargs: None)
+    monkeypatch.setattr("arkcard_ai.pipeline.unity_rel", lambda value: str(value))
+
+    def fake_check_arena(report, minimum_games, minimum_score_rate, maximum_p95_ms):
+        required_game_counts.append(minimum_games)
+        return {"passed": True, "checks": {}, "report": {}, "exitCode": 0}
+
+    monkeypatch.setattr("arkcard_ai.pipeline.check_arena", fake_check_arena)
+
+    cmd_arena(config, Namespace(config=str(config_path)))
+
+    assert required_game_counts == [20, 1000]

@@ -189,26 +189,6 @@ public class EffectManager : MonoBehaviour
         return matchingEffects;
     }
 
-    private void ExecuteEffects(CardController source, TriggerType triggerType, bool executeAllEffects, List<UnityEngine.Object> selectedTargets, Action onComplete)
-    {
-        if (source.cardData.effects == null || source.cardData.effects.Count == 0)
-        {
-            onComplete?.Invoke();
-            return;
-        }
-
-        List<CardEffectData> matchingEffects = new();
-        foreach (CardEffectData effect in source.cardData.effects)
-        {
-            if (effect != null && (executeAllEffects || effect.triggerType == triggerType))
-            {
-                matchingEffects.Add(effect);
-            }
-        }
-
-        ExecuteEffectList(source, matchingEffects, selectedTargets, new CardEffectContext(false), onComplete);
-    }
-
     private void ExecuteEffectList(
         CardController source,
         List<CardEffectData> effects,
@@ -294,12 +274,13 @@ public class EffectManager : MonoBehaviour
         Action onComplete)
     {
         ICardEffectDefinition definition = EffectRegistry.Get(effect.effectType);
-        if (definition.EffectType != EffectType.None && !definition.IsTargeted)
+        bool requiresSelection = definition.RequiresTargetSelection(effect);
+        if (definition.EffectType != EffectType.None && !requiresSelection)
         {
             context.CommitEffect();
         }
 
-        if (!definition.IsTargeted)
+        if (!requiresSelection)
         {
             definition.ApplyRuntime(context, source, effect, null, onComplete);
             return;

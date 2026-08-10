@@ -285,113 +285,18 @@ public class DragManager : MonoBehaviour
 
             if (card.cardData.cardType == CardType.Minion)
             {
-                if (fieldController.player != card.player || !GM.Ins.BM.CanUseMinion(card, fieldController))
-                {
-                    break;
-                }
-
-                PlayerController owner = card.player;
-                int costBefore = owner.cost;
-                int maxCostBefore = owner.maxCost;
-                if (!card.player.SpendCost(card.cost))
-                {
-                    break;
-                }
-
-                GM.Ins.BM.TM?.RegisterPlayedCardRollback(card, owner, costBefore, maxCostBefore);
-                ResolveMinionPlay(card, fieldController);
-                return;
+                if (GM.Ins.BM.TryQueueHandCardPlay(card, fieldController)) return;
+                break;
             }
 
             if (card.cardData.cardType == CardType.SPELL)
             {
-                if (!GM.Ins.BM.CanUseSpell(card))
-                {
-                    break;
-                }
-
-                PlayerController owner = card.player;
-                int costBefore = owner.cost;
-                int maxCostBefore = owner.maxCost;
-                if (!card.player.SpendCost(card.cost))
-                {
-                    break;
-                }
-
-                GM.Ins.BM.TM?.RegisterPlayedCardRollback(card, owner, costBefore, maxCostBefore);
-                ResolveSpellPlay(card);
-                return;
+                if (GM.Ins.BM.TryQueueHandCardPlay(card, null)) return;
+                break;
             }
         }
 
         ResetDraggedCardPosition();
-    }
-
-    private void ResolveMinionPlay(CardController sourceCard, FieldController targetField)
-    {
-        if (sourceCard == null || targetField == null)
-        {
-            return;
-        }
-
-        sourceCard.transform.localScale = Vector3.one;
-        sourceCard.player.handController.RemoveCard(sourceCard);
-        targetField.AddCard(sourceCard);
-        TargetManager targetManager = GM.Ins != null && GM.Ins.BM != null ? GM.Ins.BM.TM : null;
-        AnimeManager.Delay(AnimeManager.FieldRefreshDuration, () =>
-        {
-            if (sourceCard == null || sourceCard.state != CardState.Field)
-            {
-                targetManager?.ClearPlayedCardRollback(sourceCard);
-                return;
-            }
-
-            GM.Ins.BM.EM.TriggerCardEffect(sourceCard, TriggerType.Enter, null, () =>
-            {
-                targetManager?.ClearPlayedCardRollback(sourceCard);
-            });
-        });
-    }
-
-    private void ResolveSpellPlay(CardController sourceCard)
-    {
-        if (sourceCard == null)
-        {
-            return;
-        }
-
-        TargetManager targetManager = GM.Ins != null && GM.Ins.BM != null ? GM.Ins.BM.TM : null;
-        void TriggerSpellAfterHangingReady()
-        {
-            GM.Ins.BM.EM.TriggerSpellEffect(sourceCard, null, () =>
-            {
-                if (sourceCard != null && sourceCard.player != null)
-                {
-                    if (targetManager != null)
-                    {
-                        bool shouldSendToGraveyard = targetManager.PendingCard == sourceCard;
-                        targetManager.ReleaseHangingState(sourceCard, () =>
-                        {
-                            if (shouldSendToGraveyard && sourceCard != null && sourceCard.player != null)
-                            {
-                                sourceCard.player.SendCardToGraveyard(sourceCard);
-                            }
-
-                            targetManager.ClearPlayedCardRollback(sourceCard);
-                        });
-                    }
-                    else
-                    {
-                        sourceCard.player.SendCardToGraveyard(sourceCard);
-                    }
-                }
-            });
-        }
-
-        if (targetManager == null || !targetManager.EnterHangingState(sourceCard, false, TriggerSpellAfterHangingReady))
-        {
-            TriggerSpellAfterHangingReady();
-        }
     }
     private void ResolveTargetSelection()
     {

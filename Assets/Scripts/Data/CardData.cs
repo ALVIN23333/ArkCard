@@ -7,6 +7,10 @@ public class CardEffectData
     public TriggerType triggerType;
     public List<ConditionType> conditionTypes = new();
     public EffectType effectType;
+    public EffectTargetSide targetSide = EffectTargetSide.Friendly;
+    public EffectTargetMode targetMode = EffectTargetMode.All;
+    public EffectCharacterScope characterScope = EffectCharacterScope.Minions;
+    public bool includeSource = true;
     public int[] effectValues;
     public List<CardEffectData> thenEffects = new();
     public List<CardEffectData> elseEffects = new();
