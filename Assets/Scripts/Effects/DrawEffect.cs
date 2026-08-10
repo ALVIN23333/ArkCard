@@ -21,8 +21,7 @@ public sealed class DrawEffect : CardEffectDefinitionBase
         List<UnityEngine.Object> targets,
         Action onComplete)
     {
-        RuntimeEffectActions.Draw(source.player, EffectValues.GetValue(effect, 0));
-        onComplete?.Invoke();
+        RuntimeEffectActions.Draw(source.player, EffectValues.GetValue(effect, 0), onComplete);
     }
 
     public override void Simulate(

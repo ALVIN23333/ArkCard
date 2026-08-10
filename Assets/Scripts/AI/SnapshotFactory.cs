@@ -132,25 +132,35 @@ public static class SnapshotFactory
             {
                 continue;
             }
-            destination.Add(new CardStateSnapshot
-            {
-                RuntimeId = card.GetInstanceID(),
-                OwnerIndex = ownerIndex,
-                State = card.state,
-                Data = card.cardData,
-                Cost = card.cost,
-                Attack = card.atk,
-                Health = card.health,
-                MaxHealth = card.maxHealth,
-                CanAttack = card.canAttack,
-                CanAttackPlayer = card.canAttackPlayer,
-                AttacksRemaining = card.attackCount,
-                IsStealth = card.isStealth,
-                HolyShield = card.holyShieldCount,
-                CastUsed = card.castUsed,
-                IsSilence = card.isSilence,
-                IsDying = card.isDying,
-            });
+            destination.Add(CreateCardSnapshot(card, ownerIndex, card.state));
         }
+    }
+
+    public static CardStateSnapshot CreateCardSnapshot(CardController card, int ownerIndex, CardState state)
+    {
+        if (card == null || card.cardData == null)
+        {
+            return null;
+        }
+
+        return new CardStateSnapshot
+        {
+            RuntimeId = card.GetInstanceID(),
+            OwnerIndex = ownerIndex,
+            State = state,
+            Data = card.cardData,
+            Cost = card.cost,
+            Attack = card.atk,
+            Health = card.health,
+            MaxHealth = card.maxHealth,
+            CanAttack = card.canAttack,
+            CanAttackPlayer = card.canAttackPlayer,
+            AttacksRemaining = card.attackCount,
+            IsStealth = card.isStealth,
+            HolyShield = card.holyShieldCount,
+            CastUsed = card.castUsed,
+            IsSilence = card.isSilence,
+            IsDying = card.isDying,
+        };
     }
 }

@@ -117,8 +117,14 @@ public class PlayerController : MonoBehaviour
     }
     public void DrawCard()
     {
+        DrawCard(null);
+    }
+
+    public void DrawCard(System.Action onComplete)
+    {
         if (deckCards.Count <= 0)
         {
+            onComplete?.Invoke();
             return;
         }
 
@@ -130,16 +136,18 @@ public class PlayerController : MonoBehaviour
             TargetManager targetManager = GM.Ins != null && GM.Ins.BM != null ? GM.Ins.BM.TM : null;
             if (targetManager != null)
             {
-                targetManager.ShowCardHangingThenSendToGraveyard(card);
+                targetManager.ShowCardHangingThenSendToGraveyard(card, onComplete);
             }
             else
             {
                 SendCardToGraveyard(card);
+                onComplete?.Invoke();
             }
             return;
         }
 
         handController.AddCard(card);
+        onComplete?.Invoke();
     }
     public virtual void StartTurn()
     {

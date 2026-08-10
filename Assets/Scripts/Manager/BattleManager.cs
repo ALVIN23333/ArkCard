@@ -20,6 +20,13 @@ public class BattleManager : MonoBehaviour
     private bool isProcessingQueuedPlay;
     private readonly Dictionary<PlayerController, Transform> playerIconTargets = new();
     private readonly Queue<QueuedPlayRequest> queuedPlays = new();
+    private readonly HashSet<int> projectedPlayableHandCards = new();
+    private readonly BattleStateSimulator queueStateSimulator = new();
+    private QueuedPlayRequest activeQueuedPlay;
+    private BattleStateSnapshot projectedQueueState;
+    private PlayerController projectedQueueOwner;
+    private bool isQueueProjectionBlocked;
+    private int projectedQueueFrame = -1;
     private float lastQueuedCardScale = float.NaN;
     private float lastQueuedCardVerticalSpacing = float.NaN;
     private int lastQueuedCardSortingBase = int.MinValue;
@@ -46,6 +53,9 @@ public class BattleManager : MonoBehaviour
         public bool originalShowBack;
         public bool originalHadSortingGroup;
         public int originalSortingOrder;
+        public bool costPaid;
+        public int costBeforePayment;
+        public int maxCostBeforePayment;
     }
 
     public void Init()
@@ -57,6 +67,12 @@ public class BattleManager : MonoBehaviour
         isTurnTransitioning = true;
         isProcessingQueuedPlay = false;
         queuedPlays.Clear();
+        activeQueuedPlay = null;
+        projectedQueueState = null;
+        projectedQueueOwner = null;
+        isQueueProjectionBlocked = false;
+        projectedPlayableHandCards.Clear();
+        projectedQueueFrame = -1;
         playerIconTargets.Clear();
 
         foreach (PlayerController player in players)
@@ -153,20 +169,15 @@ public class BattleManager : MonoBehaviour
 
         return null;
     }
-    public void DrawCard(PlayerController player, int count)
+    public void DrawCard(PlayerController player, int count, Action onComplete = null)
     {
         if (player == null || count <= 0)
         {
+            onComplete?.Invoke();
             return;
         }
 
-        if (count > 1)
-        {
-            StartCoroutine(DrawCardsCoroutine(player, count));
-            return;
-        }
-
-        DrawSingleCard(player);
+        StartCoroutine(DrawCardsCoroutine(player, count, onComplete));
     }
 
     public void EndCurrentTurn()
@@ -323,42 +334,16 @@ public class BattleManager : MonoBehaviour
     // hand action indicator because plays may still be queued.
     public bool CanShowHandCardAction(CardController card)
     {
-        if (card == null
-            || card.cardData == null
-            || card.player == null
-            || card.state != CardState.Hand
-            || !card.player.isInTurn
-            || card.player.cost < card.cost)
-        {
-            return false;
-        }
-
-        if (card.cardData.cardType == CardType.Minion)
-        {
-            return card.player.fieldController != null
-                && card.player.fieldController.fieldCards.Count < GameConst.fieldMax
-                && HasRequiredConditions(card, TriggerType.Enter, false);
-        }
-
-        if (card.cardData.cardType != CardType.SPELL
-            || card.cardData.effects == null
-            || card.cardData.effects.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (CardEffectData effect in card.cardData.effects)
-        {
-            if (effect != null && EM != null && !EM.HasRequiredCondition(card, effect))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        EnsureQueueProjection();
+        return card != null
+            && card.state == CardState.Hand
+            && (TM == null || !TM.HasActiveSelection)
+            && !isQueueProjectionBlocked
+            && projectedPlayableHandCards.Contains(card.GetInstanceID());
     }
 
     public int QueuedPlayCount => queuedPlays.Count;
+    public bool IsQueueProjectionBlocked => isQueueProjectionBlocked;
 
     public bool IsCardInPlayQueue(CardController card)
     {
@@ -397,17 +382,26 @@ public class BattleManager : MonoBehaviour
             return false;
         }
 
+        if (TM != null && TM.HasActiveSelection)
+        {
+            return false;
+        }
+
+        if (activeQueuedPlay == null && queuedPlays.Count == 0)
+        {
+            RebuildQueueProjection();
+        }
+        else
+        {
+            EnsureQueueProjection();
+        }
+
         if (!CanQueueHandCardPlay(card, targetField))
         {
             return false;
         }
 
         PlayerController owner = card.player;
-        if (!owner.SpendCost(card.cost))
-        {
-            return false;
-        }
-
         SortingGroup sortingGroup = card.GetComponent<SortingGroup>();
         QueuedPlayRequest request = new()
         {
@@ -427,6 +421,7 @@ public class BattleManager : MonoBehaviour
             originalSortingOrder = sortingGroup != null ? sortingGroup.sortingOrder : 0,
         };
 
+        AnimeManager.Stop(card.transform);
         owner.handController.RemoveCard(card);
         card.transform.SetParent(playQueuePoint.transform, false);
         card.state = CardState.Hanging;
@@ -441,6 +436,8 @@ public class BattleManager : MonoBehaviour
 
         queuedPlays.Enqueue(request);
         RefreshPlayQueueLayout();
+        AppendQueuedPlayProjection(request);
+        RefreshHandActionIndicators();
         StartQueuedPlayProcessing();
         return true;
     }
@@ -448,12 +445,13 @@ public class BattleManager : MonoBehaviour
     private bool CanQueueHandCardPlay(CardController card, FieldController targetField)
     {
         if (!CanAct()
+            || isQueueProjectionBlocked
             || card == null
             || card.player == null
             || card.cardData == null
             || card.state != CardState.Hand
             || !card.player.isInTurn
-            || card.player.cost < card.cost)
+            || !projectedPlayableHandCards.Contains(card.GetInstanceID()))
         {
             return false;
         }
@@ -465,21 +463,7 @@ public class BattleManager : MonoBehaviour
                 return false;
             }
 
-            int reservedSlots = 0;
-            foreach (QueuedPlayRequest queuedPlay in queuedPlays)
-            {
-                if (queuedPlay != null
-                    && queuedPlay.targetField == targetField
-                    && queuedPlay.card != null
-                    && queuedPlay.card.cardData != null
-                    && queuedPlay.card.cardData.cardType == CardType.Minion)
-                {
-                    reservedSlots++;
-                }
-            }
-
-            return targetField.fieldCards.Count + reservedSlots < GameConst.fieldMax
-                && HasRequiredConditions(card, TriggerType.Enter, false);
+            return true;
         }
 
         if (card.cardData.cardType != CardType.SPELL
@@ -487,14 +471,6 @@ public class BattleManager : MonoBehaviour
             || card.cardData.effects.Count == 0)
         {
             return false;
-        }
-
-        foreach (CardEffectData effect in card.cardData.effects)
-        {
-            if (effect != null && EM != null && !EM.HasRequiredCondition(card, effect))
-            {
-                return false;
-            }
         }
 
         return true;
@@ -594,11 +570,14 @@ public class BattleManager : MonoBehaviour
 
         return !requireMatchingEffect || hasMatchingEffect;
     }
-    private IEnumerator DrawCardsCoroutine(PlayerController player, int count)
+    private IEnumerator DrawCardsCoroutine(PlayerController player, int count, Action onComplete)
     {
         for (int i = 0; i < count; i++)
         {
-            yield return new WaitForSeconds(0.1f);
+            if (count > 1)
+            {
+                yield return new WaitForSeconds(0.1f);
+            }
 
             // Overdraw cards use TargetManager's single pending slot. Wait for
             // the current card to finish before starting another hanging sequence.
@@ -609,11 +588,333 @@ public class BattleManager : MonoBehaviour
 
             if (isGameOver)
             {
+                onComplete?.Invoke();
                 yield break;
             }
 
-            DrawSingleCard(player);
+            bool drawComplete = false;
+            player.DrawCard(() => drawComplete = true);
+            while (!drawComplete && !isGameOver)
+            {
+                yield return null;
+            }
+
+            while (TM != null && TM.HasPendingCard && !isGameOver)
+            {
+                yield return null;
+            }
         }
+
+        onComplete?.Invoke();
+    }
+
+    private void EnsureQueueProjection()
+    {
+        if (activeQueuedPlay != null || queuedPlays.Count > 0)
+        {
+            return;
+        }
+
+        if (projectedQueueFrame == Time.frameCount && projectedQueueOwner == curplayer)
+        {
+            return;
+        }
+
+        RebuildQueueProjection();
+    }
+
+    private void RebuildQueueProjection()
+    {
+        projectedPlayableHandCards.Clear();
+        projectedQueueState = null;
+        projectedQueueOwner = curplayer;
+        isQueueProjectionBlocked = false;
+        projectedQueueFrame = Time.frameCount;
+
+        if (projectedQueueOwner == null || players == null)
+        {
+            return;
+        }
+
+        int ownerIndex = players.IndexOf(projectedQueueOwner);
+        if (!SnapshotFactory.TryCreate(this, ownerIndex, out projectedQueueState, out string error))
+        {
+            projectedQueueState = null;
+            isQueueProjectionBlocked = true;
+            Debug.LogWarning($"[BattleManager] Queue projection unavailable: {error}");
+            return;
+        }
+
+        foreach (QueuedPlayRequest request in queuedPlays)
+        {
+            if (!AppendQueuedPlayProjection(request))
+            {
+                break;
+            }
+        }
+
+        RefreshProjectedPlayableCards();
+    }
+
+    private bool AppendQueuedPlayProjection(QueuedPlayRequest request)
+    {
+        if (request == null || request.card == null || projectedQueueState == null || isQueueProjectionBlocked)
+        {
+            return false;
+        }
+
+        int ownerIndex = players.IndexOf(request.owner);
+        PlayerStateSnapshot owner = projectedQueueState.GetPlayer(ownerIndex);
+        if (owner == null)
+        {
+            isQueueProjectionBlocked = true;
+            projectedPlayableHandCards.Clear();
+            return false;
+        }
+
+        CardStateSnapshot source = projectedQueueState.FindCard(request.card.GetInstanceID());
+        if (source == null)
+        {
+            source = SnapshotFactory.CreateCardSnapshot(request.card, ownerIndex, CardState.Hand);
+            if (source == null)
+            {
+                isQueueProjectionBlocked = true;
+                projectedPlayableHandCards.Clear();
+                return false;
+            }
+
+            owner.Hand.Add(source);
+        }
+
+        if (HasUnpredictableQueueEffects(source.Data)
+            || (request.owner != null
+                && request.owner.isMainPlayer
+                && HasUnresolvedManualSelection(source, request.selectedTargets)))
+        {
+            isQueueProjectionBlocked = true;
+            projectedPlayableHandCards.Clear();
+            return false;
+        }
+
+        SimulatedAction action = FindProjectedPlayAction(projectedQueueState, source, request.selectedTargets);
+        if (action == null)
+        {
+            isQueueProjectionBlocked = true;
+            projectedPlayableHandCards.Clear();
+            return false;
+        }
+
+        projectedQueueState = queueStateSimulator.ApplyAction(
+            projectedQueueState,
+            action,
+            new System.Random(7919 + request.card.GetInstanceID()));
+        RefreshProjectedPlayableCards();
+        return true;
+    }
+
+    private void RefreshProjectedPlayableCards()
+    {
+        projectedPlayableHandCards.Clear();
+        if (projectedQueueState == null || isQueueProjectionBlocked)
+        {
+            return;
+        }
+
+        PlayerStateSnapshot owner = projectedQueueState.GetPlayer(projectedQueueState.CurrentPlayerIndex);
+        if (owner == null)
+        {
+            return;
+        }
+
+        foreach (SimulatedAction action in queueStateSimulator.GenerateLegalActions(projectedQueueState))
+        {
+            if (action != null && action.Type == SimulatedActionType.PlayHandCard)
+            {
+                projectedPlayableHandCards.Add(action.SourceCardId);
+            }
+        }
+    }
+
+    private SimulatedAction FindProjectedPlayAction(
+        BattleStateSnapshot state,
+        CardStateSnapshot source,
+        List<UnityEngine.Object> selectedTargets)
+    {
+        List<SimulatedTarget> mappedTargets = MapSimulationTargets(selectedTargets);
+        foreach (SimulatedAction action in queueStateSimulator.GenerateLegalActions(state))
+        {
+            if (action == null
+                || action.Type != SimulatedActionType.PlayHandCard
+                || action.SourceCardId != source.RuntimeId)
+            {
+                continue;
+            }
+
+            if (TargetsMatch(action.Targets, mappedTargets))
+            {
+                return action;
+            }
+        }
+
+        return null;
+    }
+
+    private List<SimulatedTarget> MapSimulationTargets(List<UnityEngine.Object> selectedTargets)
+    {
+        List<SimulatedTarget> result = new();
+        if (selectedTargets == null)
+        {
+            return result;
+        }
+
+        foreach (UnityEngine.Object target in selectedTargets)
+        {
+            if (target is CardController card)
+            {
+                result.Add(SimulatedTarget.Card(card.GetInstanceID()));
+            }
+            else if (target is PlayerController player)
+            {
+                int index = players.IndexOf(player);
+                if (index >= 0)
+                {
+                    result.Add(SimulatedTarget.Player(index));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static bool TargetsMatch(List<SimulatedTarget> expected, List<SimulatedTarget> actual)
+    {
+        if (expected == null || actual == null || expected.Count != actual.Count)
+        {
+            return false;
+        }
+
+        foreach (SimulatedTarget target in expected)
+        {
+            if (target == null || !actual.Contains(target))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool HasUnresolvedManualSelection(CardStateSnapshot source, List<UnityEngine.Object> selectedTargets)
+    {
+        if (source == null || source.Data == null || source.Data.effects == null)
+        {
+            return false;
+        }
+
+        List<SimulatedTarget> mappedTargets = MapSimulationTargets(selectedTargets);
+        foreach (CardEffectData effect in source.Data.effects)
+        {
+            if (ShouldResolveOnHandPlay(source.Data, effect)
+                && RequiresManualSelection(effect)
+                && mappedTargets.Count == 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool RequiresManualSelection(CardEffectData effect)
+    {
+        if (effect == null)
+        {
+            return false;
+        }
+
+        ICardEffectDefinition definition = EffectRegistry.Get(effect.effectType);
+        if (definition.RequiresTargetSelection(effect))
+        {
+            return true;
+        }
+
+        if (effect.thenEffects != null)
+        {
+            foreach (CardEffectData nested in effect.thenEffects)
+            {
+                if (RequiresManualSelection(nested)) return true;
+            }
+        }
+
+        if (effect.elseEffects != null)
+        {
+            foreach (CardEffectData nested in effect.elseEffects)
+            {
+                if (RequiresManualSelection(nested)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasUnpredictableQueueEffects(CardData data)
+    {
+        if (data == null || data.effects == null)
+        {
+            return false;
+        }
+
+        foreach (CardEffectData effect in data.effects)
+        {
+            if (ShouldResolveOnHandPlay(data, effect)
+                && HasUnpredictableQueueEffect(effect))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ShouldResolveOnHandPlay(CardData data, CardEffectData effect)
+    {
+        return data != null
+            && effect != null
+            && (data.cardType == CardType.SPELL || effect.triggerType == TriggerType.Enter);
+    }
+
+    private static bool HasUnpredictableQueueEffect(CardEffectData effect)
+    {
+        if (effect == null)
+        {
+            return false;
+        }
+
+        if (effect.targetMode == EffectTargetMode.Random
+            || effect.effectType == EffectType.DisCard
+            || effect.effectType == EffectType.Discard
+            || effect.effectType == EffectType.SummonRandomCostMinion)
+        {
+            return true;
+        }
+
+        if (effect.thenEffects != null)
+        {
+            foreach (CardEffectData nested in effect.thenEffects)
+            {
+                if (HasUnpredictableQueueEffect(nested)) return true;
+            }
+        }
+
+        if (effect.elseEffects != null)
+        {
+            foreach (CardEffectData nested in effect.elseEffects)
+            {
+                if (HasUnpredictableQueueEffect(nested)) return true;
+            }
+        }
+
+        return false;
     }
 
     private void StartQueuedPlayProcessing()
@@ -643,12 +944,29 @@ public class BattleManager : MonoBehaviour
 
             QueuedPlayRequest request = queuedPlays.Dequeue();
             RefreshPlayQueueLayout();
+            activeQueuedPlay = request;
+            AnimeManager.Stop(request.card != null ? request.card.transform : null);
             if (!IsQueuedPlayStillValid(request))
             {
                 CancelQueuedPlay(request);
+                activeQueuedPlay = null;
+                RebuildQueueProjection();
+                RefreshHandActionIndicators();
                 continue;
             }
 
+            request.costBeforePayment = request.owner.cost;
+            request.maxCostBeforePayment = request.owner.maxCost;
+            if (!request.owner.SpendCost(request.card.cost))
+            {
+                CancelQueuedPlay(request);
+                activeQueuedPlay = null;
+                RebuildQueueProjection();
+                RefreshHandActionIndicators();
+                continue;
+            }
+
+            request.costPaid = true;
             RegisterQueuedPlayRollback(request);
             bool completed = false;
             ExecuteQueuedPlay(request, () => completed = true);
@@ -656,6 +974,10 @@ public class BattleManager : MonoBehaviour
             {
                 yield return null;
             }
+
+            activeQueuedPlay = null;
+            RebuildQueueProjection();
+            RefreshHandActionIndicators();
         }
 
         isProcessingQueuedPlay = false;
@@ -747,8 +1069,11 @@ public class BattleManager : MonoBehaviour
             insertedIntoHand = true;
         }
 
-        int rollbackCost = request.owner.cost + card.cost;
-        TM.RegisterPlayedCardRollback(card, request.owner, rollbackCost, request.owner.maxCost);
+        TM.RegisterPlayedCardRollback(
+            card,
+            request.owner,
+            request.costBeforePayment,
+            request.maxCostBeforePayment);
         if (insertedIntoHand)
         {
             hand.handCards.Remove(card);
@@ -780,41 +1105,42 @@ public class BattleManager : MonoBehaviour
     private void ExecuteQueuedSpell(QueuedPlayRequest request, Action onComplete)
     {
         CardController card = request.card;
+        AnimeManager.Stop(card.transform);
         TargetManager targetManager = TM;
+        bool wasCancelled = false;
 
         void TriggerSpellAfterHangingReady()
         {
+            targetManager?.ReleasePendingSlot(card);
+
+            void CancelSpell()
+            {
+                wasCancelled = true;
+                CancelQueuedPlay(request);
+            }
+
             void CompleteSpell()
             {
-                bool shouldSendToGraveyard = targetManager == null || targetManager.PendingCard == card;
                 void Finish()
                 {
-                    if (shouldSendToGraveyard && card != null && card.player != null)
+                    if (!wasCancelled
+                        && card != null
+                        && card.player != null
+                        && card.state == CardState.Hanging)
                     {
                         card.player.SendCardToGraveyard(card);
-                    }
-                    else if (card != null && card.state == CardState.Hanging)
-                    {
-                        CancelQueuedPlay(request);
                     }
 
                     targetManager?.ClearPlayedCardRollback(card);
                     onComplete?.Invoke();
                 }
 
-                if (targetManager != null)
-                {
-                    targetManager.ReleaseHangingState(card, Finish);
-                }
-                else
-                {
-                    Finish();
-                }
+                Finish();
             }
 
             if (EM != null)
             {
-                EM.TriggerSpellEffect(card, request.selectedTargets, CompleteSpell);
+                EM.TriggerSpellEffect(card, request.selectedTargets, CompleteSpell, CancelSpell);
             }
             else
             {
@@ -866,6 +1192,8 @@ public class BattleManager : MonoBehaviour
         }
 
         RefreshPlayQueueLayout();
+        RebuildQueueProjection();
+        RefreshHandActionIndicators();
     }
 
     private void CancelQueuedPlay(QueuedPlayRequest request)
@@ -876,6 +1204,7 @@ public class BattleManager : MonoBehaviour
         }
 
         CardController card = request.card;
+        AnimeManager.Stop(card.transform);
         request.owner.handController?.RemoveCard(card);
         request.owner.fieldController?.RemoveCard(card);
         request.owner.graveCards.Remove(card);
@@ -896,7 +1225,11 @@ public class BattleManager : MonoBehaviour
             group.sortingOrder = request.originalSortingOrder;
         }
 
-        request.owner.AddCost(card.cost);
+        if (request.costPaid)
+        {
+            request.owner.RestoreCostState(request.costBeforePayment, request.maxCostBeforePayment);
+            request.costPaid = false;
+        }
         if (request.originalHand != null)
         {
             request.originalHand.InsertCard(card, request.originalHandIndex);
@@ -931,6 +1264,7 @@ public class BattleManager : MonoBehaviour
                 continue;
             }
 
+            AnimeManager.Stop(card.transform);
             card.transform.SetParent(playQueuePoint.transform, false);
             card.transform.localPosition = new Vector3(0f, -index * queuedCardVerticalSpacing, 0f);
             card.transform.localRotation = Quaternion.identity;
@@ -942,6 +1276,19 @@ public class BattleManager : MonoBehaviour
             }
 
             index++;
+        }
+    }
+
+    public void RefreshHandActionIndicators()
+    {
+        if (curplayer == null || curplayer.handController == null)
+        {
+            return;
+        }
+
+        foreach (CardController handCard in curplayer.handController.handCards)
+        {
+            handCard?.cardDisplay?.UpdateCard();
         }
     }
 

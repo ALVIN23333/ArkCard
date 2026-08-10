@@ -12,6 +12,7 @@ public class FieldController : MonoBehaviour
 
     public void AddCard(CardController card)
     {
+        AnimeManager.Stop(card != null ? card.transform : null);
         fieldCards.Add(card);
         card.transform.SetParent(transform, true);
         card.state = CardState.Field;

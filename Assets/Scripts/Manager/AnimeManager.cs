@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using PrimeTween;
 using UnityEngine;
 
 public sealed class AnimeSequence
 {
     private Sequence sequence;
+    private readonly HashSet<Transform> targets = new();
 
     private AnimeSequence(Sequence sequence)
     {
@@ -24,6 +26,8 @@ public sealed class AnimeSequence
         {
             sequence.Stop();
         }
+
+        AnimeManager.UnregisterSequence(this, targets);
     }
 
     public void Group(Tween tween)
@@ -38,13 +42,26 @@ public sealed class AnimeSequence
 
     public void OnComplete(Action onComplete)
     {
-        sequence.OnComplete(onComplete);
+        sequence.OnComplete(() =>
+        {
+            AnimeManager.UnregisterSequence(this, targets);
+            onComplete?.Invoke();
+        });
+    }
+
+    public void Track(Transform target)
+    {
+        if (target != null && targets.Add(target))
+        {
+            AnimeManager.RegisterSequence(this, target);
+        }
     }
 }
 
 public static class AnimeManager
 {
     public const float FieldRefreshDuration = 0.2f;
+    private static readonly Dictionary<Transform, HashSet<AnimeSequence>> sequencesByTarget = new();
 
     /// <summary>GM/测试用：为 true 时所有动画瞬时完成，但回调仍会同步触发。</summary>
     public static bool Instant;
@@ -73,6 +90,69 @@ public static class AnimeManager
     public static bool ShouldAnimate(Quaternion current, Quaternion target)
     {
         return AnimationLog.ShouldAnimate(current, target);
+    }
+
+    public static void Stop(Transform target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        if (sequencesByTarget.TryGetValue(target, out HashSet<AnimeSequence> sequences))
+        {
+            foreach (AnimeSequence sequence in new List<AnimeSequence>(sequences))
+            {
+                if (sequence != null && sequence.IsAlive)
+                {
+                    sequence.Stop();
+                }
+                else
+                {
+                    UnregisterSequence(sequence, new[] { target });
+                }
+            }
+        }
+
+        Tween.StopAll(target);
+    }
+
+    internal static void RegisterSequence(AnimeSequence sequence, Transform target)
+    {
+        if (sequence == null || target == null)
+        {
+            return;
+        }
+
+        if (!sequencesByTarget.TryGetValue(target, out HashSet<AnimeSequence> sequences))
+        {
+            sequences = new HashSet<AnimeSequence>();
+            sequencesByTarget[target] = sequences;
+        }
+
+        sequences.Add(sequence);
+    }
+
+    internal static void UnregisterSequence(AnimeSequence sequence, IEnumerable<Transform> targets)
+    {
+        if (targets == null)
+        {
+            return;
+        }
+
+        foreach (Transform target in targets)
+        {
+            if (target == null || !sequencesByTarget.TryGetValue(target, out HashSet<AnimeSequence> sequences))
+            {
+                continue;
+            }
+
+            sequences.Remove(sequence);
+            if (sequences.Count == 0)
+            {
+                sequencesByTarget.Remove(target);
+            }
+        }
     }
 
     public static void State(string context, string message, bool useDebugLog = false)
@@ -165,6 +245,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "scale", target.localScale, targetScale);
         Tween tween = Tween.Scale(target, targetScale, duration);
+        sequence?.Track(target);
         sequence?.Group(tween);
         return true;
     }
@@ -190,6 +271,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "localPosition", target.localPosition, targetPosition);
         Tween tween = Tween.LocalPosition(target, targetPosition, duration);
+        sequence?.Track(target);
         sequence?.Group(tween);
         return true;
     }
@@ -215,6 +297,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
         Tween tween = Tween.LocalRotation(target, targetRotation, duration);
+        sequence?.Track(target);
         sequence?.Group(tween);
         return true;
     }
@@ -240,6 +323,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
         Tween tween = Tween.LocalRotation(target, targetRotation, duration);
+        sequence?.Track(target);
         sequence?.Group(tween);
         return true;
     }
@@ -265,6 +349,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "position", target.position, targetPosition);
         Tween tween = Tween.Position(target, targetPosition, duration);
+        sequence?.Track(target);
         sequence?.Group(tween);
         return true;
     }
@@ -290,6 +375,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "rotation", target.rotation, targetRotation);
         Tween tween = Tween.Rotation(target, targetRotation, duration);
+        sequence?.Track(target);
         sequence?.Group(tween);
         return true;
     }
@@ -317,6 +403,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "localPosition", target.localPosition, targetPosition);
         Tween tween = Tween.LocalPosition(target, targetPosition, duration, cycles: cycles, cycleMode: GetCycleMode(yoyo));
+        sequence?.Track(target);
         sequence?.Chain(tween);
         return true;
     }
@@ -342,6 +429,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
         Tween tween = Tween.LocalRotation(target, targetRotation, duration);
+        sequence?.Track(target);
         sequence?.Chain(tween);
         return true;
     }
@@ -367,6 +455,7 @@ public static class AnimeManager
 
         LogTween(useDebugLog, target, context, "localRotation", target.localRotation, targetRotation);
         Tween tween = Tween.LocalRotation(target, targetRotation, duration);
+        sequence?.Track(target);
         sequence?.Chain(tween);
         return true;
     }

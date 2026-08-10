@@ -17,6 +17,7 @@ public class EffectManager : MonoBehaviour
         public bool hangSourceDuringProcessing;
         public List<UnityEngine.Object> selectedTargets;
         public Action onComplete;
+        public Action onCancel;
     }
 
     public void Init()
@@ -25,7 +26,12 @@ public class EffectManager : MonoBehaviour
         isProcessingTriggerQueue = false;
     }
 
-    public void TriggerCardEffect(CardController card, TriggerType triggerType, List<UnityEngine.Object> selectedTargets = null, Action onComplete = null)
+    public void TriggerCardEffect(
+        CardController card,
+        TriggerType triggerType,
+        List<UnityEngine.Object> selectedTargets = null,
+        Action onComplete = null,
+        Action onCancel = null)
     {
         if (card == null || card.cardData == null || card.isSilence)
         {
@@ -35,14 +41,18 @@ public class EffectManager : MonoBehaviour
 
         if (card.cardData.cardType == CardType.SPELL)
         {
-            TriggerSpellEffect(card, selectedTargets, onComplete);
+            TriggerSpellEffect(card, selectedTargets, onComplete, onCancel);
             return;
         }
 
-        EnqueueTrigger(card, triggerType, false, selectedTargets, onComplete);
+        EnqueueTrigger(card, triggerType, false, selectedTargets, onComplete, false, onCancel);
     }
 
-    public void TriggerSpellEffect(CardController card, List<UnityEngine.Object> selectedTargets = null, Action onComplete = null)
+    public void TriggerSpellEffect(
+        CardController card,
+        List<UnityEngine.Object> selectedTargets = null,
+        Action onComplete = null,
+        Action onCancel = null)
     {
         if (card == null || card.cardData == null || card.isSilence || card.cardData.cardType != CardType.SPELL)
         {
@@ -50,7 +60,7 @@ public class EffectManager : MonoBehaviour
             return;
         }
 
-        EnqueueTrigger(card, TriggerType.None, true, selectedTargets, onComplete);
+        EnqueueTrigger(card, TriggerType.None, true, selectedTargets, onComplete, false, onCancel);
     }
 
     public void TriggerDeathEffect(CardController card, Action onComplete = null)
@@ -77,7 +87,8 @@ public class EffectManager : MonoBehaviour
         bool executeAllEffects,
         List<UnityEngine.Object> selectedTargets,
         Action onComplete,
-        bool hangSourceDuringProcessing = false)
+        bool hangSourceDuringProcessing = false,
+        Action onCancel = null)
     {
         pendingTriggers.Enqueue(new PendingTrigger
         {
@@ -87,6 +98,7 @@ public class EffectManager : MonoBehaviour
             hangSourceDuringProcessing = hangSourceDuringProcessing,
             selectedTargets = selectedTargets != null ? new List<UnityEngine.Object>(selectedTargets) : null,
             onComplete = onComplete,
+            onCancel = onCancel,
         });
 
         if (!isProcessingTriggerQueue)
@@ -146,6 +158,11 @@ public class EffectManager : MonoBehaviour
                 {
                     void CompleteTrigger()
                     {
+                        if (context.IsCancelled)
+                        {
+                            trigger.onCancel?.Invoke();
+                        }
+
                         trigger.onComplete?.Invoke();
                         ProcessNextPendingTrigger();
                     }

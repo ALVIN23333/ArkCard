@@ -536,9 +536,25 @@ public sealed class ConfigurableDrawEffect : CardEffectDefinitionBase
 
     public override void ApplyRuntime(CardEffectContext context, CardController source, CardEffectData effect, List<UnityEngine.Object> targets, Action onComplete)
     {
-        foreach (PlayerController player in ConfigurableEffectUtility.GetRuntimePlayers(source, effect.targetSide))
-            RuntimeEffectActions.Draw(player, EffectValues.GetValue(effect, 0));
-        onComplete?.Invoke();
+        List<PlayerController> players = ConfigurableEffectUtility.GetRuntimePlayers(source, effect.targetSide);
+        if (players.Count == 0)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        int remaining = players.Count;
+        foreach (PlayerController player in players)
+        {
+            RuntimeEffectActions.Draw(player, EffectValues.GetValue(effect, 0), () =>
+            {
+                remaining--;
+                if (remaining == 0)
+                {
+                    onComplete?.Invoke();
+                }
+            });
+        }
     }
 
     public override void Simulate(BattleStateSnapshot state, CardStateSnapshot source, CardEffectData effect, List<SimulatedTarget> targets, Random random)

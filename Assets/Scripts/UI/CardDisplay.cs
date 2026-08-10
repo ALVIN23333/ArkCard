@@ -197,6 +197,12 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
             return Vector3.one * battleManager.GetQueuedCardDisplayScale();
         }
 
+        TargetManager targetManager = battleManager != null ? battleManager.TM : null;
+        if (targetManager != null && controller != null && controller.state == CardState.Hanging)
+        {
+            return targetManager.HangingScale;
+        }
+
         return controller != null && controller.state == CardState.Hanging
             ? Vector3.one * 1.5f
             : Vector3.one;

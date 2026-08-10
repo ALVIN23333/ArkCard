@@ -6,14 +6,15 @@ using UnityEngine;
 /// </summary>
 public static class RuntimeEffectActions
 {
-    public static void Draw(PlayerController player, int count)
+    public static void Draw(PlayerController player, int count, System.Action onComplete = null)
     {
         if (player == null || GM.Ins == null || GM.Ins.BM == null)
         {
+            onComplete?.Invoke();
             return;
         }
 
-        GM.Ins.BM.DrawCard(player, count);
+        GM.Ins.BM.DrawCard(player, count, onComplete);
     }
 
     public static void AddStats(CardController card, int attackValue, int healthValue)

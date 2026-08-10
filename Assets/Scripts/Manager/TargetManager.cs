@@ -84,6 +84,7 @@ public class TargetManager : MonoBehaviour
     public bool HasActiveSelection => currentRequest != null;
     public bool HasPendingCard => pendingCard != null;
     public CardController PendingCard => pendingCard;
+    public Vector3 HangingScale => hangingScale;
 
     private sealed class GraveCardState
     {
@@ -225,6 +226,7 @@ public class TargetManager : MonoBehaviour
         selectedTargets.Clear();
         requiredCount = Mathf.Min(Mathf.Max(1, request.requiredCount), candidates.Count);
         currentRequest.requiredCount = requiredCount;
+        GM.Ins?.BM?.RefreshHandActionIndicators();
         ShowSelectionObject();
 
         if (request.sourceCard.state == CardState.Hand && pendingCard != request.sourceCard)
@@ -468,6 +470,8 @@ public class TargetManager : MonoBehaviour
         pendingOriginalHadSortingGroup = sourceSortingGroup != null;
         pendingOriginalSortingOrder = pendingOriginalHadSortingGroup ? sourceSortingGroup.sortingOrder : 0;
 
+        AnimeManager.Stop(sourceCard.transform);
+
         if (pendingOriginalHand != null && pendingOriginalHandIndex >= 0)
         {
             pendingOriginalHand.RemoveCard(sourceCard);
@@ -531,6 +535,17 @@ public class TargetManager : MonoBehaviour
         CompleteHangingRelease(sourceCard, onComplete);
     }
 
+    public bool ReleasePendingSlot(CardController sourceCard)
+    {
+        if (sourceCard == null || pendingCard != sourceCard)
+        {
+            return false;
+        }
+
+        ClearPendingState();
+        return true;
+    }
+
     private void CompleteHangingRelease(CardController sourceCard, Action onComplete)
     {
         if (sourceCard != null && pendingCard == sourceCard)
@@ -541,7 +556,7 @@ public class TargetManager : MonoBehaviour
         onComplete?.Invoke();
     }
 
-    public void ShowCardHangingThenSendToGraveyard(CardController card)
+    public void ShowCardHangingThenSendToGraveyard(CardController card, Action onComplete = null)
     {
         if (card == null)
         {
@@ -556,6 +571,7 @@ public class TargetManager : MonoBehaviour
                 {
                     card.player.SendCardToGraveyard(card);
                 }
+                onComplete?.Invoke();
             });
         }))
         {
@@ -566,6 +582,7 @@ public class TargetManager : MonoBehaviour
         {
             card.player.SendCardToGraveyard(card);
         }
+        onComplete?.Invoke();
     }
 
     private void ApplyHangingStateImmediately(CardController sourceCard)
@@ -1181,6 +1198,7 @@ public class TargetManager : MonoBehaviour
         }
 
         CardController cardToRestore = pendingCard;
+        AnimeManager.Stop(cardToRestore.transform);
         RestorePendingSortingGroup(cardToRestore);
         if (pendingOriginalHand != null && pendingOriginalHandIndex >= 0)
         {
@@ -1255,6 +1273,7 @@ public class TargetManager : MonoBehaviour
         }
         HideSelectionObject();
         RefreshTargetCards();
+        GM.Ins?.BM?.RefreshHandActionIndicators();
     }
 
     private void ClearPendingState()
