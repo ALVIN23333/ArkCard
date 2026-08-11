@@ -569,9 +569,12 @@ public class TargetManager : MonoBehaviour
             {
                 if (card.player != null)
                 {
-                    card.player.SendCardToGraveyard(card);
+                    card.player.SendCardToGraveyard(card, onComplete);
                 }
-                onComplete?.Invoke();
+                else
+                {
+                    onComplete?.Invoke();
+                }
             });
         }))
         {
@@ -580,9 +583,12 @@ public class TargetManager : MonoBehaviour
 
         if (card.player != null)
         {
-            card.player.SendCardToGraveyard(card);
+            card.player.SendCardToGraveyard(card, onComplete);
         }
-        onComplete?.Invoke();
+        else
+        {
+            onComplete?.Invoke();
+        }
     }
 
     private void ApplyHangingStateImmediately(CardController sourceCard)

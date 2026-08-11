@@ -417,7 +417,7 @@ public sealed class ConfigurableBackHandEffect : CardEffectDefinitionBase
     {
         List<SimulatedTarget> resolved = ConfigurableEffectUtility.ResolveSimulationTargets(state, source, effect, targets, random, false, 0);
         resolved.RemoveAll(target => target.Kind != SimulatedTargetKind.Card);
-        foreach (SimulatedTarget target in resolved) SimulationEffectActions.ReturnToHand(state, state.FindCard(target.Id));
+        foreach (SimulatedTarget target in resolved) SimulationEffectActions.ReturnToHand(state, state.FindCard(target.Id), random);
     }
 }
 

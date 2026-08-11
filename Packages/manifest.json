@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "cn.unity.uos.launcher": "https://cnb.cool/unity/uos/UOSLauncher.git",
-    "com.gamebooom.unity.mcp": "https://github.com/FunplayAI/funplay-unity-mcp.git#v0.5.4",
+    "com.gamebooom.unity.mcp": "https://github.com/FunplayAI/funplay-unity-mcp.git#v0.6.0",
     "com.kyrylokuzyk.primetween": "1.4.11",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.feature.2d": "2.0.1",

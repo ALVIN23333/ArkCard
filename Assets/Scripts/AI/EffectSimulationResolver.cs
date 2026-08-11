@@ -46,6 +46,11 @@ public static class EffectSimulationResolver
             }
         }
 
+        if (damageDealt > 0)
+        {
+            ResolveTrigger(state, target, TriggerType.Hurt, false, null, random);
+        }
+
         if (target.Health <= 0 && !target.IsDying)
         {
             KillCard(state, target, random);
@@ -62,11 +67,6 @@ public static class EffectSimulationResolver
         {
             KillCard(state, target, random);
             return;
-        }
-
-        if (damageDealt > 0)
-        {
-            ResolveTrigger(state, target, TriggerType.Hurt, false, null, random);
         }
 
         UpdateGameOver(state);

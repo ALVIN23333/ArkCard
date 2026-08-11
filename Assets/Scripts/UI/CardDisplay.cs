@@ -36,6 +36,7 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
     private CardState originalState;
     private bool isSelected;
     private const int HoverSortingOffset = 50;
+    private static readonly Color QueuedHandTint = new Color(0.65f, 0.65f, 0.65f, 1f);
     public Quaternion InitialLocalRotation { get; private set; }
     public void SetCard(CardController cardController)
     {
@@ -96,6 +97,15 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
             return;
         }
 
+        BattleManager battleManager = GM.Ins != null ? GM.Ins.BM : null;
+        if (sr != null)
+        {
+            bool queuedInHand = controller.state == CardState.Hand
+                && battleManager != null
+                && battleManager.IsCardInPlayQueue(controller);
+            sr.color = queuedInHand ? QueuedHandTint : Color.white;
+        }
+
         if (isSilenceIcon != null)
         {
             isSilenceIcon.SetActive(front.activeSelf && controller.state == CardState.Field && controller.isSilence);
@@ -128,7 +138,6 @@ public class CardDisplay : MonoBehaviour,IPointerEnterHandler, IPointerExitHandl
             return;
         }
 
-        BattleManager battleManager = GM.Ins != null ? GM.Ins.BM : null;
         if (showChoosingIcon)
         {
             isActiveIcon.SetActive(false);

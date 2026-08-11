@@ -15,6 +15,7 @@ public class EffectManager : MonoBehaviour
         public TriggerType triggerType;
         public bool executeAllEffects;
         public bool hangSourceDuringProcessing;
+        public bool skipTriggerAnimation;
         public List<UnityEngine.Object> selectedTargets;
         public Action onComplete;
         public Action onCancel;
@@ -52,7 +53,8 @@ public class EffectManager : MonoBehaviour
         CardController card,
         List<UnityEngine.Object> selectedTargets = null,
         Action onComplete = null,
-        Action onCancel = null)
+        Action onCancel = null,
+        bool skipTriggerAnimation = false)
     {
         if (card == null || card.cardData == null || card.isSilence || card.cardData.cardType != CardType.SPELL)
         {
@@ -60,7 +62,7 @@ public class EffectManager : MonoBehaviour
             return;
         }
 
-        EnqueueTrigger(card, TriggerType.None, true, selectedTargets, onComplete, false, onCancel);
+        EnqueueTrigger(card, TriggerType.None, true, selectedTargets, onComplete, false, onCancel, skipTriggerAnimation);
     }
 
     public void TriggerDeathEffect(CardController card, Action onComplete = null)
@@ -88,7 +90,8 @@ public class EffectManager : MonoBehaviour
         List<UnityEngine.Object> selectedTargets,
         Action onComplete,
         bool hangSourceDuringProcessing = false,
-        Action onCancel = null)
+        Action onCancel = null,
+        bool skipTriggerAnimation = false)
     {
         pendingTriggers.Enqueue(new PendingTrigger
         {
@@ -96,6 +99,7 @@ public class EffectManager : MonoBehaviour
             triggerType = triggerType,
             executeAllEffects = executeAllEffects,
             hangSourceDuringProcessing = hangSourceDuringProcessing,
+            skipTriggerAnimation = skipTriggerAnimation,
             selectedTargets = selectedTargets != null ? new List<UnityEngine.Object>(selectedTargets) : null,
             onComplete = onComplete,
             onCancel = onCancel,
@@ -151,7 +155,7 @@ public class EffectManager : MonoBehaviour
                 targetManager?.EnterHangingState(trigger.source, false);
             }
 
-            AnimeManager.PlayTriggerAnimation(trigger.source, () =>
+            void ExecuteEffects()
             {
                 CardEffectContext context = new(trigger.triggerType == TriggerType.Died);
                 ExecuteEffectList(trigger.source, matchingEffects, trigger.selectedTargets, context, () =>
@@ -175,7 +179,16 @@ public class EffectManager : MonoBehaviour
 
                     CompleteTrigger();
                 });
-            });
+            }
+
+            if (trigger.skipTriggerAnimation)
+            {
+                ExecuteEffects();
+            }
+            else
+            {
+                AnimeManager.PlayTriggerAnimation(trigger.source, ExecuteEffects);
+            }
             return;
         }
 

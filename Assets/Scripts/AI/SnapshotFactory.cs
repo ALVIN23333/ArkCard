@@ -69,9 +69,9 @@ public static class SnapshotFactory
 
             if (playerIndex == aiPlayerIndex)
             {
-                CopyCards(player.handController != null ? player.handController.handCards : null, playerIndex, playerSnapshot.Hand);
+                CopyCards(player.handController != null ? player.handController.handCards : null, playerIndex, playerSnapshot.Hand, battleManager);
                 playerSnapshot.HiddenDeckCount = player.deckCards != null ? player.deckCards.Count : 0;
-                CopyCards(player.deckCards, playerIndex, playerSnapshot.DeckRemaining);
+                CopyCards(player.deckCards, playerIndex, playerSnapshot.DeckRemaining, battleManager);
             }
             else
             {
@@ -83,8 +83,8 @@ public static class SnapshotFactory
                 FillBeliefPool(opponentBeliefPool, playerSnapshot.HiddenCardPool);
             }
 
-            CopyCards(player.fieldController != null ? player.fieldController.fieldCards : null, playerIndex, playerSnapshot.Field);
-            CopyCards(player.graveCards, playerIndex, playerSnapshot.Graveyard);
+            CopyCards(player.fieldController != null ? player.fieldController.fieldCards : null, playerIndex, playerSnapshot.Field, battleManager);
+            CopyCards(player.graveCards, playerIndex, playerSnapshot.Graveyard, battleManager);
             result.Players.Add(playerSnapshot);
         }
 
@@ -120,7 +120,11 @@ public static class SnapshotFactory
         }
     }
 
-    private static void CopyCards(List<CardController> source, int ownerIndex, List<CardStateSnapshot> destination)
+    private static void CopyCards(
+        List<CardController> source,
+        int ownerIndex,
+        List<CardStateSnapshot> destination,
+        BattleManager battleManager)
     {
         if (source == null)
         {
@@ -128,7 +132,11 @@ public static class SnapshotFactory
         }
         foreach (CardController card in source)
         {
-            if (card == null || card.cardData == null)
+            // Cards already committed to the play queue (queued minions stay in
+            // the hand) must not be presented as playable hand cards to the AI.
+            if (card == null
+                || card.cardData == null
+                || (battleManager != null && battleManager.IsCardInPlayQueue(card)))
             {
                 continue;
             }

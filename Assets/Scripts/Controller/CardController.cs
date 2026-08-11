@@ -147,13 +147,13 @@ public class CardController : MonoBehaviour
             cardDisplay.UpdateCard();
         }
 
-        if (health > 0)
+        // Hurt fires even when this damage is lethal; death resolves after the trigger is queued.
+        GM.Ins.BM.EM.TriggerCardEffect(this, TriggerType.Hurt);
+        if (health <= 0)
         {
-            GM.Ins.BM.EM.TriggerCardEffect(this, TriggerType.Hurt);
-            return true;
+            Die();
         }
 
-        Die();
         return true;
     }
 

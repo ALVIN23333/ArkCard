@@ -303,16 +303,17 @@ public static class RuntimeEffectActions
                 targetCard.player.RefreshGraveyardSorting();
             }
 
-            if (targetCard.player.fieldController != null && targetCard.player.fieldController.fieldCards.Contains(targetCard))
-            {
-                targetCard.player.fieldController.RemoveCard(targetCard);
-            }
-
             PlayerController owner = targetCard.player;
             if (owner.handController.handCards.Count >= GameConst.handMax)
             {
-                owner.SendCardToGraveyard(targetCard);
+                // Hand is full: the returning minion is destroyed instead, triggering its deathrattle.
+                targetCard.Kill();
                 continue;
+            }
+
+            if (owner.fieldController != null && owner.fieldController.fieldCards.Contains(targetCard))
+            {
+                owner.fieldController.RemoveCard(targetCard);
             }
 
             CardData data = targetCard.cardData;

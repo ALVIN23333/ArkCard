@@ -363,6 +363,33 @@ public class BattleManager : MonoBehaviour
         return false;
     }
 
+    public int GetPlayerPendingPlayCount(PlayerController player)
+    {
+        if (player == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        foreach (QueuedPlayRequest request in queuedPlays)
+        {
+            if (request == null || request.owner != player || request.card == null)
+            {
+                continue;
+            }
+
+            // Cards still present in the hand (queued minions) already count
+            // against the hand limit, so only physically queued cards add to
+            // the pending count.
+            if (player.handController == null || !player.handController.handCards.Contains(request.card))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     public float GetQueuedCardDisplayScale()
     {
         return Mathf.Max(0.01f, queuedCardScale);
@@ -422,16 +449,26 @@ public class BattleManager : MonoBehaviour
         };
 
         AnimeManager.Stop(card.transform);
-        owner.handController.RemoveCard(card);
-        card.transform.SetParent(playQueuePoint.transform, false);
-        card.state = CardState.Hanging;
-        card.transform.localPosition = Vector3.zero;
-        card.transform.localRotation = Quaternion.identity;
-        card.transform.localScale = Vector3.one * Mathf.Max(0.01f, queuedCardScale);
-        if (card.cardDisplay != null)
+        if (card.cardData.cardType == CardType.Minion)
         {
-            card.cardDisplay.ShowBack(false);
-            card.cardDisplay.UpdateCard();
+            // Minions queue logically only: keep the card in the hand and play
+            // it from the hand to the field when the queue reaches it. Snap it
+            // back to its hand slot in case the player dropped it mid-drag.
+            owner.handController.RefreshHand();
+        }
+        else
+        {
+            owner.handController.RemoveCard(card);
+            card.transform.SetParent(playQueuePoint.transform, false);
+            card.state = CardState.Hanging;
+            card.transform.localPosition = Vector3.zero;
+            card.transform.localRotation = Quaternion.identity;
+            card.transform.localScale = Vector3.one * Mathf.Max(0.01f, queuedCardScale);
+            if (card.cardDisplay != null)
+            {
+                card.cardDisplay.ShowBack(false);
+                card.cardDisplay.UpdateCard();
+            }
         }
 
         queuedPlays.Enqueue(request);
@@ -994,13 +1031,23 @@ public class BattleManager : MonoBehaviour
 
     private bool IsQueuedPlayStillValid(QueuedPlayRequest request)
     {
-        CardController card = request != null ? request.card : null;
         if (request == null
-            || card == null
+            || request.card == null
             || request.owner == null
-            || card.player != request.owner
-            || card.cardData == null
-            || card.state != CardState.Hanging)
+            || request.card.player != request.owner
+            || request.card.cardData == null)
+        {
+            return false;
+        }
+
+        CardController card = request.card;
+        bool isMinion = card.cardData.cardType == CardType.Minion;
+        bool stateValid = isMinion
+            ? card.state == CardState.Hand
+                && request.owner.handController != null
+                && request.owner.handController.handCards.Contains(card)
+            : card.state == CardState.Hanging;
+        if (!stateValid)
         {
             return false;
         }
@@ -1138,14 +1185,37 @@ public class BattleManager : MonoBehaviour
                 Finish();
             }
 
-            if (EM != null)
+            void TriggerEffect()
             {
-                EM.TriggerSpellEffect(card, request.selectedTargets, CompleteSpell, CancelSpell);
+                if (EM != null)
+                {
+                    EM.TriggerSpellEffect(card, request.selectedTargets, CompleteSpell, CancelSpell, skipTriggerAnimation: true);
+                }
+                else
+                {
+                    CompleteSpell();
+                }
             }
-            else
+
+            void SendToGraveyardThenTriggerEffect()
             {
-                CompleteSpell();
+                // Let the spell fully enter the graveyard (animation completes)
+                // before its own effect logic runs.
+                if (card != null
+                    && card.player != null
+                    && card.state == CardState.Hanging)
+                {
+                    card.player.SendCardToGraveyard(card, TriggerEffect);
+                }
+                else
+                {
+                    TriggerEffect();
+                }
             }
+
+            // Play the trigger animation while the card is still hanging, then
+            // send it to the graveyard, then execute its effect logic.
+            AnimeManager.PlayTriggerAnimation(card, SendToGraveyardThenTriggerEffect);
         }
 
         if (targetManager == null || !targetManager.EnterHangingState(card, false, TriggerSpellAfterHangingReady))
@@ -1157,6 +1227,13 @@ public class BattleManager : MonoBehaviour
     private void ExecuteQueuedMinion(QueuedPlayRequest request, Action onComplete)
     {
         CardController card = request.card;
+        if (request.owner != null
+            && request.owner.handController != null
+            && request.owner.handController.handCards.Contains(card))
+        {
+            request.owner.handController.RemoveCard(card);
+        }
+
         request.targetField.AddCard(card);
         card.transform.localScale = Vector3.one;
         AnimeManager.Delay(AnimeManager.FieldRefreshDuration, () =>
@@ -1259,7 +1336,9 @@ public class BattleManager : MonoBehaviour
         foreach (QueuedPlayRequest request in queuedPlays)
         {
             CardController card = request != null ? request.card : null;
-            if (card == null)
+            // Only physically queued cards (spells) are laid out at the queue
+            // point; queued minions stay in the hand until they are played.
+            if (card == null || card.state != CardState.Hanging)
             {
                 continue;
             }

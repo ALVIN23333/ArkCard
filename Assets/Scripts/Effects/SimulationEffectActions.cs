@@ -85,7 +85,7 @@ public static class SimulationEffectActions
         }
     }
 
-    public static void ReturnToHand(BattleStateSnapshot state, CardStateSnapshot card)
+    public static void ReturnToHand(BattleStateSnapshot state, CardStateSnapshot card, Random random)
     {
         if (card == null || state == null)
         {
@@ -98,19 +98,16 @@ public static class SimulationEffectActions
             return;
         }
 
-        owner.Field.Remove(card);
         owner.Graveyard.Remove(card);
         if (owner.Hand.Count >= GameConst.handMax)
         {
-            card.ResetRuntimeState(CardState.Graveyard);
-            if (!owner.Graveyard.Contains(card))
-            {
-                owner.Graveyard.Add(card);
-            }
-
+            // Hand is full: the returning minion is destroyed instead, triggering its deathrattle.
+            random ??= new Random();
+            EffectSimulationResolver.KillCard(state, card, random);
             return;
         }
 
+        owner.Field.Remove(card);
         if (!owner.Hand.Contains(card))
         {
             owner.Hand.Add(card);

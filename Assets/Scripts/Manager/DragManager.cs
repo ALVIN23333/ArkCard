@@ -174,6 +174,12 @@ public class DragManager : MonoBehaviour
             return;
         }
 
+        if (GM.Ins.BM.IsCardInPlayQueue(card))
+        {
+            ClearDragState();
+            return;
+        }
+
         Vector3 worldPosition = GetMouseWorldPosition();
         if (card.state == CardState.Hand)
         {

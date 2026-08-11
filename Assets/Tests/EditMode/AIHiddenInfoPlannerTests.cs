@@ -465,11 +465,48 @@ public class AIHiddenInfoPlannerTests
 
         BattleStateSnapshot result = new BattleStateSimulator().ApplyAction(state, action, new Random(1));
 
-        Assert.AreEqual(GameConst.handMax, result.GetPlayer(0).Hand.Count, "Hand must stay at the cap.");
+        Assert.AreEqual(
+            GameConst.handMax,
+            result.GetPlayer(0).Hand.Count,
+            "Hand must stay at the cap.");
         Assert.AreEqual(0, result.GetPlayer(0).DeckRemaining.Count);
         Assert.IsTrue(
-            result.GetPlayer(0).Graveyard.Exists(card => card.RuntimeId == 200 || card.RuntimeId == 201),
+            result.GetPlayer(0).Graveyard.Exists(card => card.RuntimeId == 201),
             "One overflow deck card must burn to the graveyard.");
+        Assert.IsTrue(
+            result.GetPlayer(0).Hand.Exists(card => card.RuntimeId == 200),
+            "The first drawn card must enter the hand while the resolving spell no longer occupies a hand slot.");
+        Assert.IsTrue(
+            result.GetPlayer(0).Graveyard.Exists(card => card.RuntimeId == 300),
+            "The played draw spell must end in the graveyard.");
+    }
+
+    [Test]
+    public void DrawOne_FromFullHandWithPlayedSpell_EntersHand()
+    {
+        BattleStateSnapshot state = SimulationTestHelpers.CreateBaseState();
+        PlayerStateSnapshot player = state.GetPlayer(0);
+        for (int i = 0; i < GameConst.handMax - 1; i++)
+        {
+            player.Hand.Add(SimulationTestHelpers.CreateCard(400 + i, 0, CardState.Hand, 1, 1, PassiveType.None, false));
+        }
+        CardStateSnapshot spell = SimulationTestHelpers.CreateSpell(410, 0, new CardEffectData { effectType = EffectType.Draw, effectValues = new[] { 1 } });
+        player.Hand.Add(spell);
+        player.DeckRemaining.Add(SimulationTestHelpers.CreateCard(411, 0, CardState.Deck, 2, 2, PassiveType.None, false));
+
+        BattleStateSnapshot result = SimulationTestHelpers.PlaySpell(state, spell.RuntimeId);
+
+        Assert.AreEqual(
+            GameConst.handMax,
+            result.GetPlayer(0).Hand.Count,
+            "Drawn card must enter the hand since the resolving spell no longer occupies a hand slot.");
+        Assert.AreEqual(0, result.GetPlayer(0).DeckRemaining.Count);
+        Assert.IsTrue(
+            result.GetPlayer(0).Hand.Exists(card => card.RuntimeId == 411),
+            "Drawn card must enter the hand.");
+        Assert.IsTrue(
+            result.GetPlayer(0).Graveyard.Exists(card => card.RuntimeId == 410),
+            "Played spell must end in the graveyard.");
     }
 
     [Test]

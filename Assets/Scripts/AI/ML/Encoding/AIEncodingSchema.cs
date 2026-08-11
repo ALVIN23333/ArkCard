@@ -2,17 +2,19 @@ using System;
 
 public static class AIEncodingSchema
 {
-    public const int Version = 1;
+    // Schema v2: unified configurable effects (Damage=110 ... Silence=121) added
+    // 12 new EffectType values, so card features and all derived dimensions grew.
+    public const int Version = 2;
 
     public const int CardTypeCount = 3;
     public const int CardStateCount = 5;
     public const int PassiveTypeCount = 11;
     public const int TriggerTypeCount = 7;
     public const int ConditionTypeCount = 11;
-    public const int EffectTypeCount = 22;
+    public const int EffectTypeCount = 34;
 
     public const int GlobalFeatureCount = 20;
-    public const int CardFeatureCount = 78;
+    public const int CardFeatureCount = 90;
     public const int MaxHandCards = GameConst.handMax;
     public const int MaxFieldCards = GameConst.fieldMax;
     public const int VisibleCardSlotCount = MaxHandCards + MaxFieldCards + MaxFieldCards;

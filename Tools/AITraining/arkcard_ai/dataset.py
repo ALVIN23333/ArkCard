@@ -11,9 +11,12 @@ import numpy as np
 
 MAGIC = b"ARKDS001"
 FORMAT_VERSION = 1
-SCHEMA_VERSION = 1
-STATE_FEATURE_COUNT = 1892
-ACTION_FEATURE_COUNT = 655
+# Schema v2: EffectType gained 12 unified configurable effects (Damage=110 ...
+# Silence=121); card features grew from 78 to 90, and the derived state/action
+# feature counts changed accordingly. Must stay in sync with AIEncodingSchema.cs.
+SCHEMA_VERSION = 2
+STATE_FEATURE_COUNT = 2180
+ACTION_FEATURE_COUNT = 739
 MAX_RECORD_BYTES = 64 * 1024 * 1024
 
 
@@ -194,4 +197,3 @@ def _read_exact(stream: BinaryIO, count: int) -> bytes:
 
 def _unpack(stream: BinaryIO, fmt: str) -> tuple:
     return struct.unpack(fmt, _read_exact(stream, struct.calcsize(fmt)))
-

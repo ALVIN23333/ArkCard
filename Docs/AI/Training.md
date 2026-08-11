@@ -54,13 +54,13 @@
 
 ## 4. 网络学到什么
 
-schema v1 的固定维度为：
+schema v2（效果枚举扩展到 34 种）的固定维度为：
 
 | 输入 | 维度 | 含义 |
 | --- | ---: | --- |
-| 状态 `s` | 1892 | 回合/双方标量、己方手牌与场面、对方场面、墓地/牌库/隐藏牌池摘要 |
-| 动作 `a` | 655 | 动作类型、来源卡、目标数量和最多 6 个目标的语义特征 |
-| 策略输入 `(s,a)` | 2547 | 同一状态分别与每个合法动作拼接 |
+| 状态 `s` | 2180 | 回合/双方标量、己方手牌与场面、对方场面、墓地/牌库/隐藏牌池摘要 |
+| 动作 `a` | 739 | 动作类型、来源卡、目标数量和最多 6 个目标的语义特征 |
+| 策略输入 `(s,a)` | 2919 | 同一状态分别与每个合法动作拼接 |
 
 策略网络输出每个 `(s,a)` 的一个 logit，并只在该状态的合法动作集合内做 softmax。
 监督目标是旧/神经 MCTS 根访问分布：
@@ -114,23 +114,25 @@ score = Q(s,a) + C_puct * P(s,a) * sqrt(N(s)) / (1 + N(s,a))
 
 ## 7. 推荐执行入口
 
-每轮复制一份 `Tools/AITraining/configs/default.toml`，使用不可变的模型版本和 run 目录：
+每轮复制一份 `Tools/AITraining/configs/round.toml`（如 `configs/round2.toml`），
+使用不可变的模型版本和 run 目录。效果扩展后的 schema v2 轮次使用
+`configs/round2.toml`：
 
 ```powershell
 cd Tools/AITraining
 python -m pip install -e ".[export,dev]"
 
 # 可单独生成旧 MCTS 教师数据
-arkcard-pipeline generate-teacher --config configs/round.toml
+arkcard-pipeline generate-teacher --config configs/round2.toml
 
 # 按 data.mode 选择 teacher/selfplay/skip，然后训练
-arkcard-pipeline train --config configs/round.toml
+arkcard-pipeline train --config configs/round2.toml
 
 # 训练、导出并隔离暂存候选；默认从 best.pt 导出
-arkcard-pipeline candidate --config configs/round.toml
+arkcard-pipeline candidate --config configs/round2.toml
 
 # 先跑 smoke，再跑正式候选 vs 当前冠军竞技场
-arkcard-pipeline arena --config configs/round.toml
+arkcard-pipeline arena --config configs/round2.toml
 ```
 
 正确晋级顺序是：候选模型写入 `Assets/AI/Models/Candidate/`，刷新
@@ -140,15 +142,22 @@ arkcard-pipeline arena --config configs/round.toml
 正式门槛为至少 1000 局、平局计半分后的候选得分率不低于 55%、候选决策 P95 不超过
 50 ms，并且规则与编码回归全部通过。双方使用配对随机种子，并交换先后手和牌组。
 
-## 8. 当前工程状态（2026-08-08）
+## 8. 当前工程状态（2026-08-11）
 
-- 活动场景为 `Assets/Scenes/BattleScene.unity`，`player2` 挂载 `AIController`。
-- 场景已引用 `DefaultAIModelConfig`；运行配置为 `192 iterations / 45 ms / 4 determinizations`。
-- 当前模型版本为 `teacher-v1-001`，schema 1，ONNX 文件和 manifest 已存在。
-- ONNX 随机输入 parity：策略最大误差约 `3.81e-6`，价值误差 `0`。
-- `Artifacts/AI/Reports/arena-smoke.json` 只有 20 局：5 胜 15 负，得分率 25%，
-  P95 约 46.45 ms。延迟通过，但胜率和正式局数均未通过，因此该模型不能视为已晋级。
-- `DefaultAIModelConfig.asset` 当前有未提交的模型引用改动，分析与工具修复没有覆盖该改动。
+- 效果枚举新增统一可配置效果 `Damage=110` 至 `Silence=121`（共 12 个），
+  `EffectType` 从 22 种扩展到 34 种；`AIEncodingSchema` 已提升到 schema v2，
+  状态/动作/策略输入维度变为 `2180 / 739 / 2919`。
+- 旧 schema 1 的 `teacher-v1`、`self-play-r001` 数据集和 `teacher-v1-001`
+  checkpoint 与 schema v2 不兼容；`AIModelConfig.Validate` 会拒绝旧模型，
+  正式对局回退旧 MCTS，直到新模型按候选/竞技场流程晋级。
+- 新一轮使用 `Tools/AITraining/configs/round2.toml`：先以 `data.mode = "teacher"`
+  重新生成 `teacher-v2` 数据，从零训练（无 `resume`），再导出并进入候选/竞技场流程。
+- 活动场景为 `Assets/Scenes/BattleScene.unity`，`player2` 挂载 `AIController`；
+  场景仍引用旧冠军配置 `192 iterations / 45 ms / 4 determinizations`，等待新模型替换。
+
+schema 1 首轮状态（2026-08-08）：模型版本 `teacher-v1-001`，ONNX 随机输入 parity
+策略最大误差约 `3.81e-6`；`arena-smoke.json` 20 局 5 胜 15 负（得分率 25%），
+延迟通过但胜率和正式局数未达标，因此该模型不能视为已晋级。
 
 ## 9. 仍需补强的部分
 

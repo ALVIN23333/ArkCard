@@ -50,7 +50,7 @@ public sealed class OtherBackHandEffect : CardEffectDefinitionBase
 
         foreach (SimulatedTarget target in targets)
         {
-            SimulationEffectActions.ReturnToHand(state, state.FindCard(target.Id));
+            SimulationEffectActions.ReturnToHand(state, state.FindCard(target.Id), random);
         }
     }
 

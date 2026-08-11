@@ -1,5 +1,10 @@
 # ArkCard GPU 训练机执行计划
 
+> **schema 更新（2026-08-11）**：本文记录的是 schema 1 首轮的执行细节。效果枚举扩展后
+> `AIEncodingSchema` 已提升到 schema v2，特征维度变为 `2,180 / 739`（策略输入 `2,919`）；
+> 旧 `teacher-v1` / `self-play-r001` 数据与 `teacher-v1-001` checkpoint 不再兼容，
+> 新一轮需按 `Tools/AITraining/configs/round2.toml` 重新生成 `teacher-v2` 数据并重训。
+
 ## 1. 目标与当前输入
 
 本文档用于把 Unity 机器已经生成的教师数据传到 NVIDIA GPU 机器，完成首个策略/价值模型的训练、ONNX 导出、回传、Unity CPU 验收和竞技场晋级。

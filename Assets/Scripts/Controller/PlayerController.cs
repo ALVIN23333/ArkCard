@@ -131,7 +131,8 @@ public class PlayerController : MonoBehaviour
         CardController card = deckCards[0];
         deckCards.RemoveAt(0);
 
-        if (handController != null && handController.handCards.Count >= GameConst.handMax)
+        int pendingCount = GM.Ins != null && GM.Ins.BM != null ? GM.Ins.BM.GetPlayerPendingPlayCount(this) : 0;
+        if (handController != null && handController.handCards.Count + pendingCount >= GameConst.handMax)
         {
             TargetManager targetManager = GM.Ins != null && GM.Ins.BM != null ? GM.Ins.BM.TM : null;
             if (targetManager != null)
@@ -140,8 +141,7 @@ public class PlayerController : MonoBehaviour
             }
             else
             {
-                SendCardToGraveyard(card);
-                onComplete?.Invoke();
+                SendCardToGraveyard(card, onComplete);
             }
             return;
         }
@@ -273,13 +273,14 @@ public class PlayerController : MonoBehaviour
         UpdateCostUI();
     }
 
-    public void SendCardToGraveyard(CardController card)
+    public void SendCardToGraveyard(CardController card, System.Action onComplete = null)
     {
         if (card == null)
         {
+            onComplete?.Invoke();
             return;
         }
-        if(sequence == null || !sequence.IsAlive)
+        if (onComplete == null && (sequence == null || !sequence.IsAlive))
         {
             sequence = AnimeManager.CreateSequence();
         }
@@ -308,8 +309,27 @@ public class PlayerController : MonoBehaviour
             card.cardDisplay.ShowBack(false);
             card.cardDisplay.UpdateCard();
         }
-        AnimeManager.GroupLocalPosition(sequence, card.transform, "Graveyard", Vector3.zero, 0.5f);
-        AnimeManager.GroupLocalRotation(sequence, card.transform, "Graveyard", Quaternion.identity, 0.3f);
+        if (onComplete == null)
+        {
+            AnimeManager.GroupLocalPosition(sequence, card.transform, "Graveyard", Vector3.zero, 0.5f);
+            AnimeManager.GroupLocalRotation(sequence, card.transform, "Graveyard", Quaternion.identity, 0.3f);
+            return;
+        }
+
+        // When a completion callback is required, animate this card in its own
+        // sequence so onComplete fires only after the graveyard animation ends.
+        AnimeSequence cardSequence = AnimeManager.CreateSequence();
+        bool hasAnimation = false;
+        hasAnimation |= AnimeManager.GroupLocalPosition(cardSequence, card.transform, "Graveyard", Vector3.zero, 0.5f);
+        hasAnimation |= AnimeManager.GroupLocalRotation(cardSequence, card.transform, "Graveyard", Quaternion.identity, 0.3f);
+        if (!hasAnimation || AnimeManager.Instant)
+        {
+            cardSequence.Stop();
+            onComplete?.Invoke();
+            return;
+        }
+
+        cardSequence.OnComplete(onComplete);
     }
 
 
