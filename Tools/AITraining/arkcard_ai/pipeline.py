@@ -12,8 +12,13 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 TOOLS_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = TOOLS_DIR / "configs" / "default.toml"
-DEFAULT_UNITY = "D:/unity/2022.3.62f3c1/Editor/Unity.exe"
+DEFAULT_CONFIG = TOOLS_DIR / "configs" / "round.toml"
+# Unity editors are installed per machine; probe the documented location first and keep
+# the legacy path as a fallback so stale configs still resolve on the current machine.
+DEFAULT_UNITY_CANDIDATES = (
+    "D:/unityEditor/2022.3.62f3c1/Editor/Unity.exe",
+    "D:/unity/2022.3.62f3c1/Editor/Unity.exe",
+)
 
 
 # --------------------------------------------------------------------------- config
@@ -102,8 +107,27 @@ def run_command(args: list, cwd: Path, log_path: Path, env_extra: dict | None = 
         )
 
 
+def resolve_unity_editor(config: dict) -> str:
+    candidates: list[str] = []
+    configured = (config.get("project") or {}).get("unity")
+    if configured:
+        candidates.append(str(configured))
+    env_override = os.environ.get("ARKCARD_UNITY")
+    if env_override:
+        candidates.append(env_override)
+    candidates.extend(DEFAULT_UNITY_CANDIDATES)
+
+    for candidate in candidates:
+        if Path(candidate).is_file():
+            return candidate
+    raise FileNotFoundError(
+        "Unity editor executable not found. Set [project].unity in the round config or the "
+        f"ARKCARD_UNITY environment variable. Tried: {', '.join(candidates)}"
+    )
+
+
 def run_unity(config: dict, execute_method: str, extra_args: list, log_path: Path) -> None:
-    unity = (config.get("project") or {}).get("unity") or DEFAULT_UNITY
+    unity = resolve_unity_editor(config)
     args = [
         unity,
         "-batchmode",

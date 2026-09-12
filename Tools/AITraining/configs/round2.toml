@@ -3,7 +3,7 @@
 # All paths are relative to the detected project root unless absolute.
 
 [project]
-unity = "D:/unity/2022.3.62f3c1/Editor/Unity.exe"
+unity = "D:/unityEditor/2022.3.62f3c1/Editor/Unity.exe"
 
 [round]
 modelVersion = "effects-v2-r001"
