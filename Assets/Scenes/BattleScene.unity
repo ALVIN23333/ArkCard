@@ -503,7 +503,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 1.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 583797185}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!212 &135691017
@@ -1668,7 +1669,7 @@ RectTransform:
   - {fileID: 594487802}
   - {fileID: 1635036689}
   - {fileID: 172659966}
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 135691016}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -5140,6 +5141,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1989105136}
   - component: {fileID: 1989105137}
+  - component: {fileID: 1989105140}
+  - component: {fileID: 1989105139}
+  - component: {fileID: 1989105138}
   m_Layer: 0
   m_Name: player2
   m_TagString: Untagged
@@ -5204,9 +5208,73 @@ MonoBehaviour:
   explorationConstant: 1.4
   rolloutActionLimit: 4
   maxRootTurns: 2
-  enableAIDebugLog: 0
+  enableAIDebugLog: 1
   opponentBeliefPool: {fileID: 0}
   modelConfig: {fileID: 11400000, guid: 44123f73aeced2d4691df9dd0deb9ced, type: 2}
+  enableLLMStrategy: 1
+  llmStrategyClient: {fileID: 0}
+--- !u!114 &1989105138
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1989105134}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44283d91d0b39024c8d0b3b940f44bf1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agentParameters:
+    maxStep: 0
+  hasUpgradedFromAgentParameters: 1
+  MaxStep: 0
+  maxActionBranchSize: 64
+  controller: {fileID: 0}
+--- !u!114 &1989105139
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1989105134}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a5c9d521e5ef4759a8246a07d52221e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  DecisionPeriod: 5
+  TakeActionsBetweenDecisions: 1
+--- !u!114 &1989105140
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1989105134}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d1c4e0b1822b495aa52bc52839ecb30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_BrainParameters:
+    VectorObservationSize: 2180
+    NumStackedVectorObservations: 1
+    m_ActionSpec:
+      m_NumContinuousActions: 0
+      BranchSizes: 40000000
+    VectorActionSize: 40000000
+    VectorActionDescriptions: []
+    VectorActionSpaceType: 0
+    hasUpgradedBrainParametersWithActionSpec: 1
+  m_Model: {fileID: 0}
+  m_InferenceDevice: 0
+  m_BehaviorType: 0
+  m_BehaviorName: CardBattleAgent
+  TeamId: 0
+  m_UseChildSensors: 1
+  m_UseChildActuators: 1
+  m_ObservableAttributeHandling: 0
 --- !u!1 &2099592991
 GameObject:
   m_ObjectHideFlags: 0
@@ -5469,6 +5537,5 @@ SceneRoots:
   - {fileID: 1989105136}
   - {fileID: 1387327316}
   - {fileID: 135691016}
-  - {fileID: 583797185}
   - {fileID: 1686775249}
   - {fileID: 1542534280}

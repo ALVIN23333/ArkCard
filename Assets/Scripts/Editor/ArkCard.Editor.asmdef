@@ -2,7 +2,8 @@
     "name": "ArkCard.Editor",
     "references": [
         "ArkCard.Runtime",
-        "Unity.Barracuda"
+        "Unity.Barracuda",
+        "Unity.ML-Agents"
     ],
     "includePlatforms": [
         "Editor"

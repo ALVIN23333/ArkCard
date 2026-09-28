@@ -4,7 +4,8 @@
         "Unity.TextMeshPro",
         "UnityEngine.UI",
         "PrimeTween.Runtime",
-        "Unity.Barracuda"
+        "Unity.Barracuda",
+        "Unity.ML-Agents"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

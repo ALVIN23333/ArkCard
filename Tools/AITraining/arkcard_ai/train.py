@@ -66,6 +66,12 @@ def parse_args() -> argparse.Namespace:
         default=2048,
         help="Records to buffer in the background decode/prefetch thread; <=1 disables prefetch.",
     )
+    parser.add_argument(
+        "--balance-groups",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Weight training records inversely by deck-pair and observer frequency.",
+    )
     return parser.parse_args()
 
 
@@ -85,6 +91,7 @@ def train_batch(
     records: Sequence[TrainingRecord],
     device: torch.device,
     value_weight: float,
+    record_weights: Sequence[float] | None = None,
 ) -> tuple[Tensor, Tensor, Tensor]:
     states = torch.from_numpy(np.stack([record.state for record in records])).to(device)
     outcomes = torch.tensor([record.outcome for record in records], dtype=torch.float32, device=device)
@@ -106,9 +113,42 @@ def train_batch(
         target = torch.from_numpy(record.policy_target).to(device)
         policy_losses.append(-(target * F.log_softmax(logits[offset : offset + count], dim=0)).sum())
         offset += count
-    policy_loss = torch.stack(policy_losses).mean()
-    value_loss = F.huber_loss(values, outcomes, delta=1.0)
+    weights = torch.ones(len(records), dtype=torch.float32, device=device)
+    if record_weights is not None:
+        weights = torch.tensor(record_weights, dtype=torch.float32, device=device)
+    weights = weights / weights.sum().clamp_min(1e-6) * len(records)
+    policy_loss = (torch.stack(policy_losses) * weights).mean()
+    value_errors = F.huber_loss(values, outcomes, delta=1.0, reduction="none")
+    value_loss = (value_errors * weights).mean()
     return policy_loss + value_weight * value_loss, policy_loss, value_loss
+
+
+def group_key(record: TrainingRecord) -> tuple[tuple[int, ...], tuple[int, ...], int]:
+    return (
+        tuple(int(value) for value in record.first_deck),
+        tuple(int(value) for value in record.second_deck),
+        int(record.observer_player_index),
+    )
+
+
+def collect_group_weights(
+    shards: Sequence[str | Path],
+) -> dict[tuple[tuple[int, ...], tuple[int, ...], int], float]:
+    counts: dict[tuple[tuple[int, ...], tuple[int, ...], int], int] = {}
+    for path in find_shards(shards):
+        for record in iter_shard(path):
+            key = group_key(record)
+            counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        raise RuntimeError("dataset contained no records for group balancing")
+    total = sum(counts.values())
+    group_count = len(counts)
+    weights = {
+        key: min(2.0, max(0.5, total / (group_count * count)))
+        for key, count in counts.items()
+    }
+    mean_weight = sum(weights.values()) / len(weights)
+    return {key: weight / mean_weight for key, weight in weights.items()}
 
 
 def _game_id_hash(game_id: int, seed: int) -> int:
@@ -327,6 +367,7 @@ def main() -> None:
             best_validation_loss = best_metrics.get("validation_total_loss")
 
     validation_game_ids = partition_game_ids(shards, args.validation_fraction, args.seed)
+    group_weights = collect_group_weights(shards) if args.balance_groups else {}
     use_amp = args.amp and device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda") if use_amp else None
 
@@ -347,16 +388,21 @@ def main() -> None:
         )
         for batch in batched(records, args.batch_size):
             optimizer.zero_grad(set_to_none=True)
+            batch_weights = [group_weights[group_key(record)] for record in batch] if group_weights else None
             if scaler is not None:
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
-                    loss, policy_loss, value_loss = train_batch(model, batch, device, args.value_weight)
+                    loss, policy_loss, value_loss = train_batch(
+                        model, batch, device, args.value_weight, batch_weights
+                    )
                 scaler.scale(loss).backward()
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
                 scaler.step(optimizer)
                 scaler.update()
             else:
-                loss, policy_loss, value_loss = train_batch(model, batch, device, args.value_weight)
+                loss, policy_loss, value_loss = train_batch(
+                    model, batch, device, args.value_weight, batch_weights
+                )
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
                 optimizer.step()

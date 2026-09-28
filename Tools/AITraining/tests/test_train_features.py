@@ -22,6 +22,7 @@ from arkcard_ai.train import (
     partition_game_ids,
     prefetch_records,
     save_history,
+    collect_group_weights,
 )
 
 
@@ -139,3 +140,13 @@ def test_history_load_append_roundtrip(tmp_path):
     assert [item.epoch for item in reloaded] == [19, 20]
     assert reloaded[1].validation_total_loss == 1.4
     assert not (_history_path(output).with_suffix(".json.tmp")).exists()
+
+
+def test_collect_group_weights_returns_normalized_weight_for_single_group(tmp_path):
+    shard = tmp_path / "synthetic.arkds.gz"
+    _write_shard(shard, [(game, game, 0, 0.0, 17) for game in range(3)])
+
+    weights = collect_group_weights([shard])
+
+    assert len(weights) == 1
+    assert next(iter(weights.values())) == 1.0

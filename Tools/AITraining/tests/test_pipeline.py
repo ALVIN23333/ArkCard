@@ -12,6 +12,7 @@ from arkcard_ai.pipeline import (
     _train_args,
     _unity_data_args,
     cmd_arena,
+    cmd_promote,
     load_config,
     model_version,
     run_dir,
@@ -182,3 +183,32 @@ def test_arena_smoke_uses_smoke_game_count_as_its_gate(tmp_path, monkeypatch):
     cmd_arena(config, Namespace(config=str(config_path)))
 
     assert required_game_counts == [20, 1000]
+
+
+def test_arena_omits_incompatible_empty_champion_config(tmp_path, monkeypatch):
+    config_path = tmp_path / "round.toml"
+    config_path.write_text("[round]\nmodelVersion = \"candidate\"\n", encoding="utf-8")
+    config = {
+        "round": {"modelVersion": "candidate", "seed": 7, "runDir": str(tmp_path / "run")},
+        "arena": {"candidateConfig": "Assets/AI/Configs/CandidateAIModelConfig.asset", "championConfig": "", "smokeGames": 20, "games": 20, "minimumGames": 20, "reportDir": str(tmp_path / "reports")},
+    }
+    calls = []
+    monkeypatch.setattr("arkcard_ai.pipeline.run_unity", lambda *args, **kwargs: calls.append(args))
+    monkeypatch.setattr("arkcard_ai.pipeline.unity_rel", lambda value: str(value))
+    monkeypatch.setattr("arkcard_ai.pipeline.check_arena", lambda *args: {"passed": True, "checks": {}, "report": {}, "exitCode": 0})
+    cmd_arena(config, Namespace(config=str(config_path)))
+    assert all("-aiChampionModelConfig" not in call[2] for call in calls)
+
+
+def test_promote_requires_formal_arena_pass(tmp_path):
+    run_path = tmp_path / "run"
+    run_path.mkdir()
+    (run_path / "arena-result.json").write_text(
+        '{"promotable": false, "formal": {"passed": false}}', encoding="utf-8"
+    )
+    config = {
+        "round": {"modelVersion": "candidate", "runDir": str(run_path)},
+        "candidate": {"modelsDir": str(tmp_path / "candidate")},
+    }
+    with pytest.raises(RuntimeError, match="formal arena gate"):
+        cmd_promote(config, Namespace(config="round.toml"))

@@ -7,10 +7,19 @@ import os
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 compatibility
+    import tomli as tomllib
+
+configured_project_root = os.environ.get("ARKCARD_PROJECT_ROOT")
+PROJECT_ROOT = (
+    Path(configured_project_root).absolute()
+    if configured_project_root
+    else Path(__file__).resolve().parents[3]
+)
 TOOLS_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = TOOLS_DIR / "configs" / "round.toml"
 # Unity editors are installed per machine; probe the documented location first and keep
@@ -74,7 +83,7 @@ def unity_rel(value: str) -> str:
     path = Path(value)
     if path.is_absolute():
         try:
-            return path.resolve().relative_to(PROJECT_ROOT).as_posix()
+            return path.absolute().relative_to(PROJECT_ROOT.absolute()).as_posix()
         except ValueError as exception:
             raise ValueError(f"Path is outside the project: {value}") from exception
     return path.as_posix()
@@ -227,6 +236,8 @@ def _train_args(config: dict, train_cfg: dict, run_dir_path: Path) -> list[str]:
         "--validation-fraction", repr(float(train_cfg.get("validationFraction", 0.1))),
         "--prefetch-buffer", str(train_cfg.get("prefetchBuffer", 2048)),
     ]
+    if not train_cfg.get("balanceGroups", True):
+        args.append("--no-balance-groups")
     if train_cfg.get("amp", False):
         args.append("--amp")
     if train_cfg.get("resume"):
@@ -280,11 +291,28 @@ def validate_export(export_dir: Path, expected_version: str) -> dict:
         raise ValueError(
             f"manifest modelVersion {manifest.get('modelVersion')} != {expected_version}"
         )
+    expected_contract = {
+        "policy.onnx": ("policy_input", "policy_logit", 2919),
+        "value.onnx": ("state_input", "value", 2180),
+    }
     for name in ("policy.onnx", "value.onnx"):
         model = onnx.load(export_dir / name)
         onnx.checker.check_model(model)
         if model.opset_import[0].version != 9:
             raise ValueError(f"{name} opset != 9")
+        input_name, output_name, feature_count = expected_contract[name]
+        inputs = {item.name: item for item in model.graph.input}
+        outputs = {item.name for item in model.graph.output}
+        if input_name not in inputs or output_name not in outputs:
+            raise ValueError(
+                f"{name} contract mismatch: expected {input_name} -> {output_name}"
+            )
+        dimensions = inputs[input_name].type.tensor_type.shape.dim
+        declared_feature_count = dimensions[-1].dim_value if dimensions else 0
+        if declared_feature_count not in (0, feature_count):
+            raise ValueError(
+                f"{name} feature dimension {declared_feature_count} != {feature_count}"
+            )
     parity = manifest.get("parity") or {}
     if max(parity.get("policyMaxAbsError", 0.0), parity.get("valueMaxAbsError", 0.0)) > 1e-4:
         raise ValueError(f"ONNX parity exceeded 1e-4: {parity}")
@@ -447,7 +475,8 @@ def cmd_arena(config: dict, args: argparse.Namespace) -> None:
     run_dir_path = run_dir(config)
     run_dir_path.mkdir(parents=True, exist_ok=True)
     candidate = unity_rel(str(arena_cfg.get("candidateConfig", "Assets/AI/Configs/CandidateAIModelConfig.asset")))
-    champion = unity_rel(str(arena_cfg.get("championConfig", "Assets/AI/Configs/DefaultAIModelConfig.asset")))
+    champion_config = str(arena_cfg.get("championConfig", "")).strip()
+    champion = unity_rel(champion_config) if champion_config else ""
     seed = (config.get("round") or {}).get("seed", 20260806)
     smoke_games = int(arena_cfg.get("smokeGames", 20))
     formal_games = int(arena_cfg.get("games", 1000))
@@ -471,9 +500,8 @@ def cmd_arena(config: dict, args: argparse.Namespace) -> None:
                 "-aiArenaGames", str(games),
                 "-aiSeed", str(seed),
                 "-aiCandidateModelConfig", candidate,
-                "-aiChampionModelConfig", champion,
                 "-aiArenaReport", unity_rel(str(report)),
-            ],
+            ] + (["-aiChampionModelConfig", champion] if champion else []),
             run_dir_path / log_name,
         )
         return check_arena(report, required_games, minimum_score_rate, maximum_p95_ms)
@@ -503,6 +531,64 @@ def cmd_arena(config: dict, args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def cmd_promote(config: dict, args: argparse.Namespace) -> None:
+    """Promote a passed candidate and keep a restorable copy of the champion."""
+    version = model_version(config)
+    candidate_cfg = config.get("candidate") or {}
+    run_dir_path = run_dir(config)
+    arena_result_path = run_dir_path / "arena-result.json"
+    if not arena_result_path.exists():
+        raise FileNotFoundError(
+            f"Arena result is missing: {arena_result_path}. Run the arena command first."
+        )
+    arena_result = json.loads(arena_result_path.read_text(encoding="utf-8"))
+    formal = arena_result.get("formal") or {}
+    if not arena_result.get("promotable") or not formal.get("passed"):
+        raise RuntimeError("Candidate did not pass the formal arena gate; promotion was refused.")
+
+    candidate_dir = project_path(
+        str(candidate_cfg.get("modelsDir", "Assets/AI/Models/Candidate"))
+    )
+    champion_dir = PROJECT_ROOT / "Assets" / "AI" / "Models"
+    required_files = ("policy.onnx", "value.onnx", "manifest.json")
+    for name in required_files:
+        if not (candidate_dir / name).is_file():
+            raise FileNotFoundError(f"Candidate model file is missing: {candidate_dir / name}")
+
+    backup_dir = run_dir_path / "champion-backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backed_up = []
+    if champion_dir.exists():
+        for name in required_files:
+            source = champion_dir / name
+            if source.is_file():
+                shutil.copy2(source, backup_dir / name)
+                backed_up.append(name)
+
+    champion_dir.mkdir(parents=True, exist_ok=True)
+    for name in required_files:
+        shutil.copy2(candidate_dir / name, champion_dir / name)
+
+    run_unity(
+        config,
+        "ModelPromotionUtility.RefreshDefaultConfig",
+        [],
+        run_dir_path / "promote-config.log",
+    )
+    promotion = {
+        "modelVersion": version,
+        "source": unity_rel(str(candidate_dir)),
+        "target": unity_rel(str(champion_dir)),
+        "backedUpFiles": backed_up,
+        "backupDirectory": unity_rel(str(backup_dir)),
+        "formalArena": formal,
+    }
+    (run_dir_path / "promotion-report.json").write_text(
+        json.dumps(promotion, indent=2), encoding="utf-8"
+    )
+    print(json.dumps(promotion, indent=2))
+
+
 def main() -> None:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--config", default=str(DEFAULT_CONFIG), help="TOML config path")
@@ -515,6 +601,7 @@ def main() -> None:
     subparsers.add_parser("train", parents=[common], help="Generate optional data then train the model")
     subparsers.add_parser("candidate", parents=[common], help="Train/export/stage a candidate model")
     subparsers.add_parser("arena", parents=[common], help="Run arena smoke + formal and check promotion gates")
+    subparsers.add_parser("promote", parents=[common], help="Promote a passed candidate and refresh the default Unity config")
     args = parser.parse_args()
     config = load_config(Path(args.config), args.set)
     commands = {
@@ -522,6 +609,7 @@ def main() -> None:
         "train": cmd_train,
         "candidate": cmd_candidate,
         "arena": cmd_arena,
+        "promote": cmd_promote,
     }
     commands[args.command](config, args)
 

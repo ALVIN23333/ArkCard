@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24,<3",
     "torch>=2.2,<3",
+    "tomli>=2.0,<3; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]

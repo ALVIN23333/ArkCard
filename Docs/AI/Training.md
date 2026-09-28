@@ -114,6 +114,17 @@ score = Q(s,a) + C_puct * P(s,a) * sqrt(N(s)) / (1 + N(s,a))
 
 ## 7. 推荐执行入口
 
+Windows 中文路径下运行 Unity 批处理训练时，建议先创建 ASCII 映射盘，避免 Burst 和
+ML-Agents 原生库加载失败：
+
+```powershell
+subst X: D:\UnityProjects\综合实验\ArkCard-main
+$env:ARKCARD_PROJECT_ROOT = "X:\"
+$env:ARKCARD_UNITY = "C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Unity.exe"
+```
+
+映射盘只影响本轮训练进程，不会移动项目文件。
+
 每轮复制一份 `Tools/AITraining/configs/round.toml`（如 `configs/round2.toml`），
 使用不可变的模型版本和 run 目录。效果扩展后的 schema v2 轮次使用
 `configs/round2.toml`：

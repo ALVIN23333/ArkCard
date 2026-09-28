@@ -80,3 +80,34 @@ Desktop.ini
 /Tools/.tmp/
 /Assets/AI/Configs/CandidateAIModelConfig.asset
 /Assets/AI/Configs/CandidateAIModelConfig.asset.meta
+
+# ============================================================================
+# 密钥与本地私有配置（绝对不要提交）
+# ============================================================================
+# 本地环境变量文件：每位开发者自己创建，内含 ARKCARD_LLM_API_KEY
+.env
+.env.*
+!.env.example
+*.env
+secrets.json
+secrets/
+UserSecrets/
+*.local.json
+appsettings.Development.json
+
+# 逐条讨论用的临时截图与录屏（可能包含明文 API Key、账号信息、本机路径）
+# 这些文件放在项目根目录，仅用于本地排查，不进入仓库
+/*.png
+/*.jpg
+/*.jpeg
+/*.mp4
+/*.mov
+/*.webp
+
+# 提交材料目录内含实验报告与大体积截图，按需决定是否提交。
+# 其中「LLM API调用测试/设置ARKCARD_LLM_API_KEY.png」等原始截图含明文 Key，
+# 若确实要提交该目录，请先删除或打码这些文件。
+/提交材料/LLM API调用测试/设置ARKCARD_LLM_API_KEY.png
+/提交材料/LLM API调用测试/*.ps1
+/提交材料/_system_prompt.txt
+

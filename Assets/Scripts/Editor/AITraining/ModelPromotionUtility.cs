@@ -31,6 +31,33 @@ public static class ModelPromotionUtility
         Debug.Log($"[AI ML] Candidate config refreshed: version={config.modelVersion}, path={configPath}");
     }
 
+    public static void TuneCandidateSearchFromCommandLine()
+    {
+        string[] arguments = Environment.GetCommandLineArgs();
+        string configPath = ReadStringArgument(
+            arguments,
+            "-aiCandidateConfigPath",
+            "Assets/AI/Configs/CandidateAIModelConfig.asset");
+        int searchIterations = ReadIntArgument(arguments, "-aiSearchIterations", 128);
+        int timeBudgetMs = ReadIntArgument(arguments, "-aiTimeBudgetMs", 35);
+        AIModelConfig config = AssetDatabase.LoadAssetAtPath<AIModelConfig>(configPath);
+        if (config == null)
+        {
+            throw new InvalidOperationException($"Candidate AI model config is missing at {configPath}.");
+        }
+        if (searchIterations <= 0 || timeBudgetMs <= 0)
+        {
+            throw new ArgumentOutOfRangeException("Search settings must be positive.");
+        }
+
+        config.searchIterations = searchIterations;
+        config.timeBudgetMs = timeBudgetMs;
+        EditorUtility.SetDirty(config);
+        AssetDatabase.SaveAssetIfDirty(config);
+        AssetDatabase.Refresh();
+        Debug.Log($"[AI ML] Candidate search tuned: iterations={searchIterations}, timeBudgetMs={timeBudgetMs}, path={configPath}");
+    }
+
     public static string ReadStringArgument(string[] arguments, string name, string fallback)
     {
         for (int index = 0; index + 1 < arguments.Length; index++)
@@ -41,6 +68,12 @@ public static class ModelPromotionUtility
             }
         }
         return fallback;
+    }
+
+    private static int ReadIntArgument(string[] arguments, string name, int fallback)
+    {
+        string value = ReadStringArgument(arguments, name, null);
+        return int.TryParse(value, out int parsed) ? parsed : fallback;
     }
 
     public static AIModelConfig RefreshConfig(string modelsDirectory, string configPath)

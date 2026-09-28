@@ -32,12 +32,24 @@ arkcard-pipeline arena --config Tools/AITraining/configs/round.toml
 
 ## 正式替换冠军
 
-只有 `arena-result.json` 的 `promotable` 为 `true` 后，才执行正式替换：
+只有正式竞技场通过后，才执行正式替换。流水线会拒绝缺少 `arena-result.json` 或
+`promotable != true` 的发布请求：
 
-1. 归档本轮配置、Git commit、数据校验和、checkpoint、训练 history、导出 manifest 和竞技场报告。
-2. 将同一次候选导出的三个文件复制到 `Assets/AI/Models/`。
-3. 在 Unity 执行 `Tools > AI Training > Refresh Default Config From Promoted Models`。
-4. 回读 `DefaultAIModelConfig.asset` 的模型版本、schema、模型引用和运行时 checksum。
-5. 再运行完整 EditMode 测试和发布场景 smoke，最后才提交冠军模型与配置资产。
+```powershell
+arkcard-pipeline promote --config configs/round.toml
+```
+
+该命令会：
+
+1. 检查正式竞技场的 `formal.passed`。
+2. 把当前 `Assets/AI/Models/` 中已有的模型备份到本轮 `champion-backup/`。
+3. 将同一次候选导出的三个文件复制到 `Assets/AI/Models/`。
+4. 在 Unity 批处理模式执行 `ModelPromotionUtility.RefreshDefaultConfig`。
+5. 生成 `promotion-report.json`，记录版本、源目录、目标目录、备份文件和正式竞技场结果。
+
+发布后仍需回读 `DefaultAIModelConfig.asset` 的模型版本、schema、模型引用和运行时 checksum，
+再运行完整 EditMode 测试和发布场景 smoke，最后才提交冠军模型与配置资产。需要回滚时，
+将本轮 `champion-backup/` 中的三个文件恢复到 `Assets/AI/Models/`，再重新执行 Unity
+配置刷新菜单或批处理方法。
 
 严禁把失败候选复制到默认目录，或仅凭训练 loss、20 局 smoke、ONNX parity 判定晋级。
