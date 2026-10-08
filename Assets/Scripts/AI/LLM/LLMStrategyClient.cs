@@ -70,15 +70,6 @@ public sealed class LLMChatResponse
 }
 
 [Serializable]
-public sealed class LLMActionOption
-{
-    public int index;
-    public string type;
-    public int source_card_id;
-    public int[] target_ids;
-}
-
-[Serializable]
 public sealed class LLMStrategyPrompt
 {
     public int current_player_health;
@@ -118,8 +109,11 @@ public sealed class LLMStrategyClient : MonoBehaviour
         "你是一个类炉石传说卡牌对战游戏的AI战术顾问。你需要根据当前对局状态，制定最优的出牌策略。\n" +
         "游戏规则：\n" +
         "- 每回合费用自动增长，每回合抽一张卡牌。\n" +
-        "- 随从可以攻击敌方随从或英雄。\n" +
-        "- 法术可以指定目标。\n" +
+        "- PlayMinion：从手牌打出随从，占用一个场地格子并进场；有目标时通常是战吼，不是法术。\n" +
+        "- PlaySpell：从手牌打出法术，立即结算后进入墓地，不占用场地。\n" +
+        "- 有无目标不能用来判断卡种：随从战吼可以指定目标，法术也可以是无目标效果。\n" +
+        "- UseFieldCast：场上随从的主动技能，每回合一次。\n" +
+        "- 随从可以攻击敌方随从或英雄（AttackMinion / AttackPlayer）。\n" +
         "- 目标：将敌方英雄血量降至0以下。\n" +
         "- 场地随从上限5格，手牌上限10张。\n" +
         "你只能从 legal_actions 中选择一个 action_index，不允许发明不存在的动作。\n" +
@@ -189,44 +183,7 @@ public sealed class LLMStrategyClient : MonoBehaviour
         BattleStateSnapshot state,
         System.Collections.Generic.IReadOnlyList<SimulatedAction> legalActions)
     {
-        PlayerStateSnapshot current = state.GetPlayer(state.CurrentPlayerIndex);
-        PlayerStateSnapshot opponent = null;
-        foreach (PlayerStateSnapshot player in state.Players)
-        {
-            if (player != null && player.PlayerIndex != state.CurrentPlayerIndex)
-            {
-                opponent = player;
-                break;
-            }
-        }
-
-        LLMActionOption[] options = new LLMActionOption[legalActions.Count];
-        for (int index = 0; index < legalActions.Count; index++)
-        {
-            SimulatedAction action = legalActions[index];
-            int[] targetIds = new int[action.Targets.Count];
-            for (int targetIndex = 0; targetIndex < action.Targets.Count; targetIndex++)
-            {
-                targetIds[targetIndex] = action.Targets[targetIndex].Id;
-            }
-            options[index] = new LLMActionOption
-            {
-                index = index,
-                type = action.Type.ToString(),
-                source_card_id = action.SourceCardId,
-                target_ids = targetIds
-            };
-        }
-
-        return new LLMStrategyPrompt
-        {
-            current_player_health = current != null ? current.Health : 0,
-            opponent_health = opponent != null ? opponent.Health : 0,
-            current_player_cost = current != null ? current.Cost : 0,
-            current_player_field_count = current != null ? current.Field.Count : 0,
-            opponent_field_count = opponent != null ? opponent.Field.Count : 0,
-            legal_actions = options
-        };
+        return LLMActionPromptBuilder.BuildPrompt(state, legalActions);
     }
 
     private static LLMStrategyHint ParseHint(string responseText, int legalActionCount)
@@ -392,22 +349,20 @@ public sealed class LLMStrategyClient : MonoBehaviour
             return;
         }
 
-        // 用一个固定的示意局面，结构与游戏内 BuildPrompt 的输出完全一致
-        LLMStrategyPrompt testPrompt = new()
+        // 用示意局面走正式 BuildPrompt，保证字段与游戏内请求一致
+        BattleStateSnapshot debugState = CreateDebugSnapshot();
+        System.Collections.Generic.List<SimulatedAction> debugActions = new()
         {
-            current_player_health = 22,
-            opponent_health = 18,
-            current_player_cost = 6,
-            current_player_field_count = 2,
-            opponent_field_count = 1,
-            legal_actions = new[]
+            new SimulatedAction { Type = SimulatedActionType.PlayHandCard, SourceCardId = 101 },
+            new SimulatedAction
             {
-                new LLMActionOption { index = 0, type = "PlayHandCard", source_card_id = -12345, target_ids = new int[0] },
-                new LLMActionOption { index = 1, type = "AttackPlayer", source_card_id = -12346, target_ids = new[] { 1 } },
-                new LLMActionOption { index = 2, type = "EndTurn", source_card_id = 0, target_ids = new int[0] },
+                Type = SimulatedActionType.AttackPlayer,
+                SourceCardId = 201,
+                Targets = new System.Collections.Generic.List<SimulatedTarget> { SimulatedTarget.Player(1) },
             },
+            new SimulatedAction { Type = SimulatedActionType.EndTurn },
         };
-
+        LLMStrategyPrompt testPrompt = BuildPrompt(debugState, debugActions);
         string userJson = JsonUtility.ToJson(testPrompt);
         LLMChatRequest testRequest = new()
         {
@@ -460,6 +415,71 @@ public sealed class LLMStrategyClient : MonoBehaviour
                 + $"confidence = {hint.confidence:0.00}, strategy = {hint.strategy}\n"
                 + $"[AI LLM] 是否会被游戏采纳："
                 + (hint.confidence >= 0.6f ? "会采纳（confidence 达到阈值）" : "不会采纳（confidence 低于阈值）"));
+        };
+    }
+
+    private static BattleStateSnapshot CreateDebugSnapshot()
+    {
+        CardStateSnapshot minion = new()
+        {
+            RuntimeId = 101,
+            OwnerIndex = 0,
+            State = CardState.Hand,
+            Cost = 3,
+            Attack = 2,
+            Health = 3,
+            Data = new CardData
+            {
+                name = "近卫",
+                cardType = CardType.Minion,
+                cost = 3,
+                attack = 2,
+                health = 3,
+                effectDescription = "嘲讽",
+                passiveTypes = new System.Collections.Generic.List<PassiveType> { PassiveType.Guard },
+            },
+        };
+        CardStateSnapshot attacker = new()
+        {
+            RuntimeId = 201,
+            OwnerIndex = 0,
+            State = CardState.Field,
+            Cost = 2,
+            Attack = 3,
+            Health = 2,
+            Data = new CardData
+            {
+                name = "先锋",
+                cardType = CardType.Minion,
+                cost = 2,
+                attack = 3,
+                health = 2,
+            },
+        };
+        return new BattleStateSnapshot
+        {
+            CurrentPlayerIndex = 0,
+            Players = new System.Collections.Generic.List<PlayerStateSnapshot>
+            {
+                new()
+                {
+                    PlayerIndex = 0,
+                    Health = 22,
+                    MaxHealth = 30,
+                    Cost = 6,
+                    MaxCost = 6,
+                    Hand = new System.Collections.Generic.List<CardStateSnapshot> { minion },
+                    Field = new System.Collections.Generic.List<CardStateSnapshot> { attacker },
+                },
+                new()
+                {
+                    PlayerIndex = 1,
+                    Health = 18,
+                    MaxHealth = 30,
+                    Cost = 6,
+                    MaxCost = 6,
+                },
+            },
         };
     }
 #endif

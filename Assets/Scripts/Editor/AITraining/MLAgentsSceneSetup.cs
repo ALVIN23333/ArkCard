@@ -34,7 +34,7 @@ public static class MLAgentsSceneSetup
             requester = Undo.AddComponent<DecisionRequester>(controller.gameObject);
         }
 
-        Undo.RecordObjects(new Object[] { behavior, requester }, "Configure ML-Agents");
+        Undo.RecordObjects(new Object[] { agent, behavior, requester }, "Configure ML-Agents");
         behavior.BehaviorName = "CardBattleAgent";
         behavior.BrainParameters.VectorObservationSize = AIEncodingSchema.StateFeatureCount;
         behavior.BrainParameters.NumStackedVectorObservations = 1;
@@ -43,9 +43,13 @@ public static class MLAgentsSceneSetup
         requester.DecisionPeriod = 5;
         requester.TakeActionsBetweenDecisions = true;
 
+        // 正式对局由 AIController 执行。组件保留以便后续 PPO，但默认禁用避免 Heuristic 抢步。
+        agent.enabled = false;
+        requester.enabled = false;
+
         EditorUtility.SetDirty(agent);
         EditorUtility.SetDirty(behavior);
         EditorUtility.SetDirty(requester);
-        Debug.Log($"[ArkCard AI] Configured {controller.gameObject.name}: observation={AIEncodingSchema.StateFeatureCount}, action branch=64.");
+        Debug.Log($"[ArkCard AI] Configured {controller.gameObject.name}: observation={AIEncodingSchema.StateFeatureCount}, action branch=64. CardBattleAgent and DecisionRequester are disabled for play; enable both before PPO training.");
     }
 }

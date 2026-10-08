@@ -65,12 +65,12 @@ public sealed class MCTSResult
         }
         foreach (MCTSActionStatistics statistics in RootStatistics.Take(5))
         {
-            builder.Append("  ").Append(statistics.Action)
+            builder.Append("  ").Append(LLMActionPromptBuilder.FormatAction(rootState, statistics.Action))
                 .Append(" visits=").Append(statistics.VisitCount)
                 .Append(" mean=").Append(statistics.MeanValue.ToString("F3"))
                 .Append(" prior=").Append(statistics.PriorHeuristic.ToString("F2")).AppendLine();
         }
-        builder.Append("selected=").Append(SelectedAction != null ? SelectedAction.ToString() : "none");
+        builder.Append("selected=").Append(LLMActionPromptBuilder.FormatAction(rootState, SelectedAction));
         return builder.ToString();
     }
 }

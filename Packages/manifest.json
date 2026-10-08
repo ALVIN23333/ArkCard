@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "cn.unity.uos.launcher": "https://cnb.cool/unity/uos/UOSLauncher.git",
-    "com.gamebooom.unity.mcp": "https://github.com/FunplayAI/funplay-unity-mcp.git#v0.6.2",
+    "com.gamebooom.unity.mcp": "https://github.com/FunplayAI/funplay-unity-mcp.git#v0.7.0",
     "com.kyrylokuzyk.primetween": "1.4.11",
     "com.mirror.steamworks.net": "https://github.com/Chykary/FizzySteamworks.git?path=/com.mirror.steamworks.net",
     "com.rlabrecque.steamworks.net": "https://github.com/rlabrecque/Steamworks.NET.git?path=/com.rlabrecque.steamworks.net",

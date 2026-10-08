@@ -5213,6 +5213,9 @@ MonoBehaviour:
   modelConfig: {fileID: 11400000, guid: 44123f73aeced2d4691df9dd0deb9ced, type: 2}
   enableLLMStrategy: 1
   llmStrategyClient: {fileID: 0}
+  llmStrategyIntervalTurns: 3
+  llmConfidenceThreshold: 0.6
+  llmDisadvantageHealthRatio: 0.5
 --- !u!114 &1989105138
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5220,7 +5223,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1989105134}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 44283d91d0b39024c8d0b3b940f44bf1, type: 3}
   m_Name: 
@@ -5238,7 +5241,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1989105134}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a5c9d521e5ef4759a8246a07d52221e, type: 3}
   m_Name: 

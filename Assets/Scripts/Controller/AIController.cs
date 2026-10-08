@@ -131,7 +131,7 @@ public class AIController : PlayerController
             selectedAction = legalActions[hint.action_index];
             if (enableAIDebugLog)
             {
-                Debug.Log($"[AI Hybrid] LLM={hint.strategy}, confidence={hint.confidence:0.00}, action={selectedAction}", this);
+                Debug.Log($"[AI Hybrid] LLM={hint.strategy}, confidence={hint.confidence:0.00}, action={LLMActionPromptBuilder.FormatAction(snapshot, selectedAction)}", this);
             }
         }
         else if (hint != null && enableAIDebugLog)
@@ -141,7 +141,7 @@ public class AIController : PlayerController
 
         if (selectedAction == null || !ExecuteAction(selectedAction))
         {
-            Debug.LogWarning($"[AI MCTS] Selected action could not be executed: {selectedAction}", this);
+            Debug.LogWarning($"[AI MCTS] Selected action could not be executed: {LLMActionPromptBuilder.FormatAction(snapshot, selectedAction)}", this);
         }
         ScheduleNextAction();
         actionInProgress = false;

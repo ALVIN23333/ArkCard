@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 <!-- Funplay Unity MCP managed project skills -->
-<!-- Funplay Unity MCP project skill versions: unity-mcp-workflow@1.0.2 -->
+<!-- Funplay Unity MCP project skill versions: unity-mcp-workflow@1.0.6, unity-ui-composition@1.0.8 -->
 
 # Funplay Unity MCP Project Guidance
 
@@ -9,12 +9,13 @@ This section is managed by Funplay MCP for Unity for Claude Code. Everything bet
 
 ## Installed skills
 
-- `unity-mcp-workflow` v1.0.2 - Efficient workflow for using Unity MCP to edit, import, compile, inspect, and test Unity projects.
+- `unity-mcp-workflow` v1.0.6 - Efficient workflow for using Unity MCP to edit, import, compile, inspect, and test Unity projects, including screenshot and Game View recording verification.
+- `unity-ui-composition` v1.0.8 - Build and revise Unity UI, primarily uGUI mobile page prefabs, with framework-aware routing, Sprite import safety, text effects, localization and visual verification.
 
 ## Preferred workflow
 
 - Use Funplay MCP tools for Unity editor state and automation.
-- Use `execute_code` for non-trivial Unity orchestration. For new snippets, include `using Funplay.Editor.Tools.Scripting;`, implement `IFunplayCommand`, and use `ctx.RegisterObjectCreation` / `RegisterObjectModification` / `DestroyObject` so changes participate in Undo and `ctx.Log` for traceable output.
+- Prefer structured MCP operations; use `execute_code` only for project-specific orchestration not covered by them. For new snippets, include `using Funplay.Editor.Tools.Scripting;`, implement `IFunplayCommand`, and use `ctx.RegisterObjectCreation` / `RegisterObjectModification` / `DestroyObject` so changes participate in Undo and `ctx.Log` for traceable output.
 - Confirm the Unity project root, active scene, and real object/prefab/asset path before edits. Treat user-provided object names as hints, not paths.
 - Inspect Unity objects through MCP before changing user-named scene or prefab targets. Carry the returned `instanceId` into follow-up calls (`find_method=by_id`) instead of re-resolving by name.
 - Tool returns are structured JSON (`{success, message, data}` / `{success: false, code, error, data}`). Branch on `code`, not free-form text.
@@ -23,18 +24,19 @@ This section is managed by Funplay MCP for Unity for Claude Code. Everything bet
 - Read editor state through `get_selection`, `get_prefab_stage`, `get_tags`, `get_layers`, `get_build_settings`; try `execute_menu_item` before writing ad-hoc `execute_code`.
 - Never edit `.unity`, `.prefab`, or `.asset` files with shell text tools or patches; use Unity MCP / Editor APIs for scenes, prefabs, and ScriptableObject assets.
 - Save only the scene or prefab assets intentionally modified, then read back exact values.
-- With default `core` exposure, use the focused workflow tools. With default `full` exposure, prefer specific MCP tools for simple editor operations.
-- `execute_code` refreshes assets and waits for compilation before running. For other tools that depend on freshly compiled code, still call `request_recompile` after external script edits.
+- Prefer structured query/audit/edit tools in Core; low-frequency configuration and preview management remain in Full. Use `get_tool_capabilities` to check exposure; respect customized allowlists.
+- `execute_code` refreshes by default; use skip_refresh only after verifying the intended assemblies are ready.
 - In `execute_code`, null-guard every lookup and return explicit missing path/object/component messages; do not run self-healing fallback loops.
 - For Unity object references, do not use `??=` for lazy rebinding; use explicit `if (field == null) field = Resolve();`.
-- After code or resource edits, exit Play Mode if needed, call `request_recompile`, `wait_for_compilation`, then read compilation or console errors.
+- After edits use `prepare_editor` with the intended mode and a unique request_key; use the returned task_id with `get_task`, wait_seconds and after_revision until operation.status=ready and current_editor confirms readiness and mode, then check console errors. Honor poll_after_ms on unchanged results.
 - `request_recompile` is rejected while Unity is in Play Mode. Call `exit_play_mode` first, then retry.
-- After `enter_play_mode`, the HTTP server briefly drops while Unity reloads the domain. Poll `tools/list` or `get_reload_recovery_status` until it responds again before issuing the next tool call.
-- If domain reload interrupts a request, treat the result as unknown until `get_reload_recovery_status`, compilation checks, and MCP readback confirm it.
+- On disconnect, retry the same operation status read by ID/key. Historical reload recovery or HTTP reachability alone does not establish current readiness.
+- An interrupted arbitrary mutation has unknown outcome until exact object/asset readback confirms it; never automatically replay it.
+- If a Claude Code session reports another `funplay-*` MCP server entry as unreachable, check whether its name matches this project's own before treating Funplay as broken. Funplay registers one independent entry per Unity project, but Claude Code's connection check surfaces every registered entry on the machine regardless of which project the session is in — a different project's entry being disconnected is expected when that project's Editor isn't currently open, and it should not be deleted, since it may still be in active use by that project.
 - Additional installed skills are available under `.claude/skills/`.
 
 ## Project
 
-- Project root: `D:\unityXiangmu\ArkCard`
+- Project root: `F:\unity\ArkCard`
 - Product name: `明日方舟卡牌`
 <!-- /Funplay Unity MCP managed project skills -->
