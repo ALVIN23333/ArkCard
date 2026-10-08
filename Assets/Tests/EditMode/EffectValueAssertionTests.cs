@@ -309,6 +309,20 @@ public class EffectValueAssertionTests
     }
 
     [Test]
+    public void DealDamageToEnemy_OverkillClampsPlayerHealthAndEndsGame()
+    {
+        BattleStateSnapshot state = SimulationTestHelpers.CreateBaseState();
+        state.GetPlayer(1).Health = 2;
+        CardStateSnapshot spell = SimulationTestHelpers.CreateSpell(100, 0,
+            new CardEffectData { effectType = EffectType.DealDamageToEnemy, effectValues = new[] { 5 } });
+        state.GetPlayer(0).Hand.Add(spell);
+
+        BattleStateSnapshot result = SimulationTestHelpers.PlaySpell(state, spell.RuntimeId);
+        Assert.AreEqual(0, result.GetPlayer(1).Health, "Overkill damage must clamp hero health to 0.");
+        Assert.IsTrue(result.IsGameOver, "Game must be over after lethal hero damage.");
+    }
+
+    [Test]
     public void SlienceEnemy_DisablesGuardPassive()
     {
         BattleStateSnapshot state = SimulationTestHelpers.CreateBaseState();

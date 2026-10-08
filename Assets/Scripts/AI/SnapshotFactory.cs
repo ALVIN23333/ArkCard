@@ -88,6 +88,8 @@ public static class SnapshotFactory
             result.Players.Add(playerSnapshot);
         }
 
+        EffectSimulationResolver.UpdateGameOver(result);
+        result.IsGameOver = result.IsGameOver || battleManager.IsGameOver;
         snapshot = result;
         return true;
     }

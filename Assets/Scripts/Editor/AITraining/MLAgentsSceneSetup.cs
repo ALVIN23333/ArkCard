@@ -34,22 +34,24 @@ public static class MLAgentsSceneSetup
             requester = Undo.AddComponent<DecisionRequester>(controller.gameObject);
         }
 
-        Undo.RecordObjects(new Object[] { agent, behavior, requester }, "Configure ML-Agents");
+        Undo.RecordObjects(new Object[] { controller, agent, behavior, requester }, "Configure ML-Agents");
+        agent.BindController(controller);
+        SerializedObject agentObject = new(agent);
+        agentObject.FindProperty("controller").objectReferenceValue = controller;
+        agentObject.ApplyModifiedProperties();
+
         behavior.BehaviorName = "CardBattleAgent";
         behavior.BrainParameters.VectorObservationSize = AIEncodingSchema.StateFeatureCount;
         behavior.BrainParameters.NumStackedVectorObservations = 1;
         behavior.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(new[] { 64 });
-        behavior.BehaviorType = BehaviorType.Default;
         requester.DecisionPeriod = 5;
-        requester.TakeActionsBetweenDecisions = true;
-
-        // 正式对局由 AIController 执行。组件保留以便后续 PPO，但默认禁用避免 Heuristic 抢步。
-        agent.enabled = false;
+        requester.TakeActionsBetweenDecisions = false;
         requester.enabled = false;
 
+        EditorUtility.SetDirty(controller);
         EditorUtility.SetDirty(agent);
         EditorUtility.SetDirty(behavior);
         EditorUtility.SetDirty(requester);
-        Debug.Log($"[ArkCard AI] Configured {controller.gameObject.name}: observation={AIEncodingSchema.StateFeatureCount}, action branch=64. CardBattleAgent and DecisionRequester are disabled for play; enable both before PPO training.");
+        Debug.Log($"[ArkCard AI] Configured {controller.gameObject.name}: observation={AIEncodingSchema.StateFeatureCount}, action branch=64. Switch AIController Control Mode to ML-Agents to enable the agent; DecisionRequester stays disabled because AIController owns the decision cadence.");
     }
 }

@@ -75,7 +75,7 @@ public static class EffectSimulationResolver
     public static void DamagePlayer(BattleStateSnapshot state, CardStateSnapshot source, PlayerStateSnapshot target, int damage)
     {
         if (target == null || damage <= 0) return;
-        target.Health -= damage;
+        target.Health = Math.Max(0, target.Health - damage);
         if (source != null && source.HasPassive(PassiveType.Lifesteal))
         {
             PlayerStateSnapshot owner = state.GetPlayer(source.OwnerIndex);

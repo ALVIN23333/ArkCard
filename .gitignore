@@ -63,6 +63,8 @@ Desktop.ini
 
 # ArkCard AI training outputs and local Python environments
 /Artifacts/AI/
+/.venv-mlagents/
+/results/
 /Tools/AITraining/.venv/
 /Tools/AITraining/.pytest_cache/
 /Tools/AITraining/**/__pycache__/

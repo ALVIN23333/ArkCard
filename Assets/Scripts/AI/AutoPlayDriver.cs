@@ -29,6 +29,19 @@ public class AutoPlayDriver : MonoBehaviour
     private float nextActionTime;
     private IAIPlanner planner;
 
+    public void SetActionInterval(float interval)
+    {
+        actionInterval = Mathf.Max(0.02f, interval);
+        nextActionTime = 0f;
+    }
+
+    public void SetSearchBudget(int iterations, int timeBudgetMs)
+    {
+        searchIterations = Mathf.Clamp(iterations, 200, 500);
+        searchTimeBudgetMs = Mathf.Max(1, timeBudgetMs);
+        DisposePlanner();
+    }
+
     public static AutoPlayDriver GetOrCreate()
     {
         AutoPlayDriver existing = FindObjectOfType<AutoPlayDriver>();

@@ -973,6 +973,7 @@ public class BattleManager : MonoBehaviour
                 {
                     CancelAllQueuedPlays();
                     isProcessingQueuedPlay = false;
+                    CheckGameOver();
                     yield break;
                 }
 
@@ -1019,6 +1020,7 @@ public class BattleManager : MonoBehaviour
 
         isProcessingQueuedPlay = false;
         RefreshPlayQueueLayout();
+        CheckGameOver();
     }
 
     private bool CanProcessQueuedPlayNow()
@@ -1478,7 +1480,7 @@ public class BattleManager : MonoBehaviour
             return true;
         }
 
-        if (IsEffectProcessing())
+        if (EM != null && EM.IsProcessingEffects)
         {
             return false;
         }

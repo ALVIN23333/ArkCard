@@ -3809,6 +3809,7 @@ GameObject:
   - component: {fileID: 1382267511}
   - component: {fileID: 1382267510}
   - component: {fileID: 1382267512}
+  - component: {fileID: 1382267513}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -3875,6 +3876,21 @@ MonoBehaviour:
   endTurnButton: {fileID: 1679937580}
   WinPanel: {fileID: 1635036688}
   TurnPanel: {fileID: 172659965}
+--- !u!114 &1382267513
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1382267503}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58500f1e26ed4376bcd242007ee3b8e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trainingTimeScale: 8
+  trainingActionInterval: 0.05
+  restartDelay: 0.75
 --- !u!1 &1387327315
 GameObject:
   m_ObjectHideFlags: 0
@@ -5211,9 +5227,10 @@ MonoBehaviour:
   enableAIDebugLog: 1
   opponentBeliefPool: {fileID: 0}
   modelConfig: {fileID: 11400000, guid: 44123f73aeced2d4691df9dd0deb9ced, type: 2}
-  enableLLMStrategy: 1
+  controlMode: 0
+  enableLLMStrategy: 0
   llmStrategyClient: {fileID: 0}
-  llmStrategyIntervalTurns: 3
+  llmStrategyIntervalTurns: 1
   llmConfidenceThreshold: 0.6
   llmDisadvantageHealthRatio: 0.5
 --- !u!114 &1989105138
@@ -5233,7 +5250,7 @@ MonoBehaviour:
   hasUpgradedFromAgentParameters: 1
   MaxStep: 0
   maxActionBranchSize: 64
-  controller: {fileID: 0}
+  controller: {fileID: 1989105137}
 --- !u!114 &1989105139
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5270,9 +5287,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: e24768abf8ff8f4438575cc08c58c9d1, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: CardBattleAgent
   TeamId: 0
   m_UseChildSensors: 1

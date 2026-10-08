@@ -1,27 +1,13 @@
-// ============================================================================
-// 【改动 2 / LLM 调用时机 + confidence 回退，对齐《AI集成方案设计文档》3.1、3.3 节】
-//
-// 本文件 = Assets/Scripts/Controller/AIController.cs 的修改副本。
-// 原文件未做任何改动，本副本只放在 new/ 目录下供你审阅后手工搬回。
-//
-// 与原文件的差异（共 4 处）：
-//   [1] 新增 "LLM Call Policy" 配置区：调用间隔 / 置信度阈值 / 劣势比例
-//   [2] ProcessTurnAction 中先判断是否到调用时机，再决定要不要请求 LLM
-//       （对应文档 3.1：对局开始时、每 3 回合、AI 处于劣势时）
-//   [3] 采纳 LLM 建议时增加 confidence >= 阈值 判断
-//       （对应文档 3.3：confidence 低于 0.6 时回退到 ML-Agents / 本地规划器）
-//   [4] 新增 ShouldRequestLLMHint / FindOpponentForLLM 两个辅助方法
-//   [5] 修正调用限频：改用本地 completedAiTurns 计数
-//
-// 关于 [5]：最初设想用快照里的 RootEndTurnCount 做“每 N 回合 / 开局”判断，
-// 但该字段只在 BattleStateSimulator 的内部副本上递增，SnapshotFactory 构造
-// 正式对局快照时从不设置它（恒为 0），会使“每 N 回合”永不生效、每次决策都调用。
-// 因此改为在 EndTurn 里累加本地计数器 completedAiTurns。
-// ============================================================================
-
 using System.Collections;
 using System.Collections.Generic;
+using Unity.MLAgents;
 using UnityEngine;
+
+public enum AIControlMode
+{
+    LocalPlanner = 0,
+    MLAgents = 1,
+}
 
 public class AIController : PlayerController
 {
@@ -43,46 +29,79 @@ public class AIController : PlayerController
     private CardListSO opponentBeliefPool;
     [SerializeField]
     private AIModelConfig modelConfig;
+    [Header("Control Mode")]
+    [SerializeField]
+    private AIControlMode controlMode = AIControlMode.LocalPlanner;
     [Header("Hybrid AI")]
     [SerializeField]
     private bool enableLLMStrategy;
     [SerializeField]
     private LLMStrategyClient llmStrategyClient;
 
-    // [1] LLM 调用策略：集中暴露，便于在 Inspector 里按文档 3.1 调参
     [Header("LLM Call Policy")]
     [SerializeField, Min(1)]
-    private int llmStrategyIntervalTurns = 3;          // 每 N 回合询问一次策略
+    private int llmStrategyIntervalTurns = 3;
     [SerializeField, Range(0f, 1f)]
-    private float llmConfidenceThreshold = 0.6f;       // 低于该置信度则不采纳 LLM 建议
+    private float llmConfidenceThreshold = 0.6f;
     [SerializeField, Range(0f, 1f)]
-    private float llmDisadvantageHealthRatio = 0.5f;   // 己方血量低于敌方该比例时视为劣势
+    private float llmDisadvantageHealthRatio = 0.5f;
 
     private float nextActionTime;
     private IAIPlanner planner;
     private bool actionInProgress;
-
-    // 【修正】本地已完成的 AI 回合计数。
-    // 原方案用 snapshot.RootEndTurnCount 判断调用时机，但该字段只在
-    // BattleStateSimulator 内部副本上递增，SnapshotFactory 构造正式对局快照时
-    // 从不设置它（恒为 0），导致 ShouldRequestLLMHint 的第一个分支每次都命中，
-    // 「每 N 回合」形同虚设。改用这个本地计数器才能真正限频。
     private int completedAiTurns;
+    private bool loggedMLAgentsFallback;
+    private CardBattleAgent mlAgentsAgent;
+
+    public AIControlMode ControlMode => controlMode;
+    public bool IsMLAgentsMode => controlMode == AIControlMode.MLAgents;
+
+    public void ApplyTrainingCadence(float interval)
+    {
+        actionInterval = Mathf.Max(0.02f, interval);
+        nextActionTime = 0f;
+    }
+
+    public void SetLLMStrategyEnabled(bool enabled)
+    {
+        enableLLMStrategy = enabled;
+        enableAIDebugLog = false;
+    }
+
 
     private void OnEnable()
     {
         IsAIControlled = true;
         actionInProgress = false;
+        loggedMLAgentsFallback = false;
+        SyncMLAgentsComponents();
     }
 
     private void OnDisable()
     {
         IsAIControlled = false;
         DisposePlanner();
+        if (mlAgentsAgent != null)
+        {
+            mlAgentsAgent.enabled = false;
+        }
+        DecisionRequester requester = GetComponent<DecisionRequester>();
+        if (requester != null)
+        {
+            requester.enabled = false;
+        }
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        SyncMLAgentsComponents();
+    }
+#endif
 
     private void Update()
     {
+        SyncMLAgentsComponents();
         if (!ShouldProcessTurnActions() || actionInProgress || Time.time < nextActionTime)
         {
             return;
@@ -104,39 +123,45 @@ public class AIController : PlayerController
             yield break;
         }
 
-        // [2] 先看是否处于文档 3.1 约定的调用时机，再决定要不要发请求
-        LLMStrategyHint hint = null;
         List<SimulatedAction> legalActions = new BattleStateSimulator().GenerateLegalActions(snapshot);
+        bool training = IsMLAgentsTraining();
+        bool useMLAgents = ShouldUseMLAgentsPolicy();
+        LLMStrategyHint hint = null;
         if (enableLLMStrategy
+            && !training
             && ResolveLLMClient() != null
             && ShouldRequestLLMHint(snapshot, legalActions))
         {
             yield return llmStrategyClient.RequestHint(snapshot, legalActions, result => hint = result);
         }
 
-        MCTSResult result = GetPlanner().Search(snapshot);
-        if (enableAIDebugLog)
+        SimulatedAction llmAction = TrySelectLLMAction(hint, legalActions);
+        if (useMLAgents && llmAction == null)
         {
-            Debug.Log(result.GetDebugSummary(snapshot), this);
+            yield return RequestMLAgentsDecision();
+            ScheduleNextAction();
+            actionInProgress = false;
+            yield break;
         }
 
-        SimulatedAction selectedAction = result.SelectedAction;
-
-        // [3] 只有同时满足“置信度达标 + 下标合法”才采纳 LLM 建议
-        if (hint != null
-            && hint.confidence >= llmConfidenceThreshold
-            && hint.action_index >= 0
-            && hint.action_index < legalActions.Count)
+        SimulatedAction selectedAction = llmAction;
+        if (selectedAction == null)
         {
-            selectedAction = legalActions[hint.action_index];
+            MCTSResult result = GetPlanner().Search(snapshot);
             if (enableAIDebugLog)
             {
-                Debug.Log($"[AI Hybrid] LLM={hint.strategy}, confidence={hint.confidence:0.00}, action={LLMActionPromptBuilder.FormatAction(snapshot, selectedAction)}", this);
+                Debug.Log(result.GetDebugSummary(snapshot), this);
+            }
+
+            selectedAction = result.SelectedAction;
+            if (llmAction == null && hint != null && enableAIDebugLog && !training)
+            {
+                Debug.Log($"[AI Hybrid] LLM hint rejected (confidence={hint.confidence:0.00} < {llmConfidenceThreshold:0.00}), keeping local planner result.", this);
             }
         }
-        else if (hint != null && enableAIDebugLog)
+        else if (enableAIDebugLog)
         {
-            Debug.Log($"[AI Hybrid] LLM hint rejected (confidence={hint.confidence:0.00} < {llmConfidenceThreshold:0.00}), keeping local planner result.", this);
+            Debug.Log($"[AI Hybrid] LLM={hint.strategy}, confidence={hint.confidence:0.00}, action={LLMActionPromptBuilder.FormatAction(snapshot, selectedAction)}", this);
         }
 
         if (selectedAction == null || !ExecuteAction(selectedAction))
@@ -147,10 +172,108 @@ public class AIController : PlayerController
         actionInProgress = false;
     }
 
-    /// <summary>
-    /// 对应《AI集成方案设计文档》3.1 节的调用时机：
-    /// 开局、每 llmStrategyIntervalTurns 回合、以及 AI 处于劣势时。
-    /// </summary>
+    private SimulatedAction TrySelectLLMAction(LLMStrategyHint hint, List<SimulatedAction> legalActions)
+    {
+        if (hint == null
+            || legalActions == null
+            || hint.confidence < llmConfidenceThreshold
+            || hint.action_index < 0
+            || hint.action_index >= legalActions.Count)
+        {
+            return null;
+        }
+
+        return legalActions[hint.action_index];
+    }
+
+    private IEnumerator RequestMLAgentsDecision()
+    {
+        CardBattleAgent agent = ResolveMLAgentsAgent();
+        if (agent == null || !agent.enabled)
+        {
+            yield break;
+        }
+
+        agent.BeginTurnDecision();
+        agent.RequestDecision();
+        float deadline = Time.unscaledTime + 2f;
+        while (!agent.HasFinishedTurnDecision && Time.unscaledTime < deadline)
+        {
+            yield return null;
+        }
+    }
+
+    private bool ShouldUseMLAgentsPolicy()
+    {
+        if (controlMode != AIControlMode.MLAgents)
+        {
+            return false;
+        }
+
+        CardBattleAgent agent = ResolveMLAgentsAgent();
+        if (agent == null)
+        {
+            WarnMLAgentsFallback("CardBattleAgent is missing.");
+            return false;
+        }
+
+        if (IsMLAgentsTraining() || agent.HasAssignedModel())
+        {
+            return true;
+        }
+
+        WarnMLAgentsFallback("no ONNX model is assigned and mlagents-learn is not connected.");
+        return false;
+    }
+
+    private bool IsMLAgentsTraining()
+    {
+        return Academy.IsInitialized && Academy.Instance.IsCommunicatorOn;
+    }
+
+    private void WarnMLAgentsFallback(string reason)
+    {
+        if (loggedMLAgentsFallback)
+        {
+            return;
+        }
+
+        loggedMLAgentsFallback = true;
+        Debug.LogWarning($"[AI Hybrid] ML-Agents mode unavailable ({reason}) Falling back to local planner.", this);
+    }
+
+    private void SyncMLAgentsComponents()
+    {
+        CardBattleAgent agent = ResolveMLAgentsAgent();
+        DecisionRequester requester = GetComponent<DecisionRequester>();
+        if (requester != null && requester.enabled)
+        {
+            requester.enabled = false;
+        }
+
+        if (agent == null)
+        {
+            return;
+        }
+
+        agent.BindController(this);
+        bool enableAgent = controlMode == AIControlMode.MLAgents;
+        if (agent.enabled != enableAgent)
+        {
+            agent.enabled = enableAgent;
+        }
+    }
+
+    private CardBattleAgent ResolveMLAgentsAgent()
+    {
+        if (mlAgentsAgent == null)
+        {
+            mlAgentsAgent = GetComponent<CardBattleAgent>();
+        }
+
+        return mlAgentsAgent;
+    }
+
     private bool ShouldRequestLLMHint(BattleStateSnapshot snapshot, List<SimulatedAction> legalActions)
     {
         if (snapshot == null || legalActions == null || legalActions.Count == 0)
@@ -165,24 +288,19 @@ public class AIController : PlayerController
             return false;
         }
 
-        // 【修正】原先这里判断 snapshot.RootEndTurnCount，但该字段在正式对局快照中恒为 0
-        // （SnapshotFactory 不设置它），导致第一个分支每次都命中、「每 N 回合」不生效。
-        // 改用本地 completedAiTurns：0 表示开局（调用一次），之后每 N 回合调用一次。
         if (completedAiTurns <= 0)
         {
-            return true;   // 对局开局
+            return true;
         }
 
         if (completedAiTurns % llmStrategyIntervalTurns == 0)
         {
-            return true;   // 每 N 个 AI 回合
+            return true;
         }
 
-        // AI 处于劣势（文档表述为“己方血量低于敌方 50%”）
         return me.Health < enemy.Health * llmDisadvantageHealthRatio;
     }
 
-    // [4] 与 CardBattleAgent.FindOpponent 同构：遍历 Players 取另一个玩家
     private static PlayerStateSnapshot FindOpponentForLLM(BattleStateSnapshot snapshot, int playerIndex)
     {
         foreach (PlayerStateSnapshot player in snapshot.Players)
@@ -206,7 +324,7 @@ public class AIController : PlayerController
     {
         base.EndTurn();
         nextActionTime = 0f;
-        completedAiTurns++;   // 【修正】供 ShouldRequestLLMHint 做调用限频
+        completedAiTurns++;
     }
 
     private bool ShouldProcessTurnActions()
